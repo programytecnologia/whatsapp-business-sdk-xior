@@ -63,11 +63,17 @@ export class WABAClient {
 	 * @param fields you can specify which data you want to get from your business. If not passed, defaults to all fields.
 	 */
 	getBusinessProfile(fields?: BusinessProfileFieldsQuery) {
-		return this.restClient.get<BusinessProfile>(`${this.phoneId}/whatsapp_business_profile`, {
-			fields:
-				fields?.join(",") ||
-				"about,address,description,email,profile_picture_url,websites,vertical",
-		});
+		return this.restClient.get<BusinessProfile>(
+			`${this.phoneId}/whatsapp_business_profile`,
+			undefined,
+			{
+				params: {
+					fields:
+						fields?.join(",") ||
+						"about,address,description,email,profile_picture_url,websites,vertical",
+				},
+			}
+		);
 	}
 	/**
 	 * @param payload provide the fields that you wish to update.
