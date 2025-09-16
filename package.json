@@ -1,81 +1,79 @@
 {
-	"name": "whatsapp-business",
-	"author": "MarcosNicolau",
-	"version": "1.14.3",
-	"description": "Node.js connector for the WhatsApp Business APIs with TypeScript support, integration tests and more.",
-	"license": "MIT",
-	"licenses": [
-		{
-			"type": "MIT",
-			"url": "https://github.com/MarcosNicolau/whatsapp-business-sdk/blob/main/LICENSE"
-		}
-	],
-	"main": "./dist/src/index.js",
-	"types": "./dist/src/index.d.ts",
-	"files": [
-		"dist"
-	],
-	"publishConfig": {
-		"registry": "https://registry.npmjs.org/",
-		"tag": "latest"
-	},
-	"scripts": {
-		"build": "tsc",
-		"test": "jest",
-		"prepare": "husky && tsc --build",
-		"cm": "cz"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/MarcosNicolau/whatsapp-business-sdk.git"
-	},
-	"homepage": "https://github.com/MarcosNicolau/whatsapp-business-sdk",
-	"bugs": {
-		"url": "https://github.com/MarcosNicolau/whatsapp-business-sdk/issues",
-		"email": "marcosnicolau2003@gmail.com"
-	},
-	"dependencies": {
-		"express": "^4.18.2",
-		"form-data": "^4.0.0",
-		"xior": "^0.7.8"
-	},
-	"devDependencies": {
-		"@commitlint/cli": "^17.6.6",
-		"@commitlint/config-conventional": "^17.6.6",
-		"@semantic-release/changelog": "^6.0.3",
-		"@semantic-release/git": "^10.0.1",
-		"@semantic-release/npm": "^10.0.4",
-		"@types/express": "^4.17.17",
-		"@types/express-serve-static-core": "^4.17.35",
-		"@types/jest": "^27.5.1",
-		"@typescript-eslint/eslint-plugin": "^6.0.0",
-		"@typescript-eslint/parser": "^6.0.0",
-		"commitizen": "^4.3.0",
-		"cz-conventional-changelog": "3.3.0",
-		"devmoji": "^2.3.0",
-		"dotenv": "^16.3.1",
-		"eslint": "^8.45.0",
-		"eslint-plugin-import": "^2.27.5",
-		"husky": "^8.0.3",
-		"jest": "^28.1.0",
-		"lint-staged": "^13.2.3",
-		"prettier": "^3.0.0",
-		"semantic-release": "^21.0.7",
-		"ts-jest": "^29.1.1",
-		"typescript": "^5.1.6"
-	},
-	"config": {
-		"commitizen": {
-			"path": "./node_modules/cz-conventional-changelog"
-		}
-	},
-	"keywords": [
-		"meta",
-		"connector",
-		"nodejs",
-		"api",
-		"sdk",
-		"whatsapp",
-		"facebook"
-	]
+  "name": "whatsapp-business",
+  "author": "MarcosNicolau",
+  "version": "1.14.3",
+  "description": "Node.js connector for the WhatsApp Business APIs with TypeScript support, integration tests and more.",
+  "license": "MIT",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/MarcosNicolau/whatsapp-business-sdk/blob/main/LICENSE"
+    }
+  ],
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "biome check .",
+    "format": "biome format . --write",
+    "prepare": "husky && tsc --build",
+    "cm": "cz"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MarcosNicolau/whatsapp-business-sdk.git"
+  },
+  "homepage": "https://github.com/MarcosNicolau/whatsapp-business-sdk",
+  "bugs": {
+    "url": "https://github.com/MarcosNicolau/whatsapp-business-sdk/issues",
+    "email": "marcosnicolau2003@gmail.com"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "form-data": "^4.0.0",
+    "xior": "^0.7.8"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.6.6",
+    "@commitlint/config-conventional": "^17.6.6",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/npm": "^10.0.4",
+    "@types/express": "^4.17.17",
+    "@types/express-serve-static-core": "^4.17.35",
+    "@types/jest": "^27.5.1",
+    "commitizen": "^4.3.0",
+    "cz-conventional-changelog": "3.3.0",
+    "devmoji": "^2.3.0",
+    "dotenv": "^16.3.1",
+    "husky": "^8.0.3",
+    "jest": "^28.1.0",
+    "lint-staged": "^13.2.3",
+    "@biomejs/biome": "^2.2.4",
+    "semantic-release": "^21.0.7",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.1.6"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "keywords": [
+    "meta",
+    "connector",
+    "nodejs",
+    "api",
+    "sdk",
+    "whatsapp",
+    "facebook"
+  ]
 }
