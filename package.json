@@ -1,5 +1,5 @@
 {
-  "name": "whatsapp-business",
+  "name": "@programytecnologia/whatsapp-business-sdk",
   "author": "MarcosNicolau",
   "version": "1.14.3",
   "description": "Node.js connector for the WhatsApp Business APIs with TypeScript support, integration tests and more.",
