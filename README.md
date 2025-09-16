@@ -7,6 +7,17 @@
 ![npm](https://img.shields.io/npm/v/whatsapp-business)
 ![GitHub](https://img.shields.io/github/license/MarcosNicolau/whatsapp-business-sdk)
 
+---
+> Fork of the great work made by @MarcosNicolau, but rewritten to use:
+
+- **pnpm** instead of **yarn**
+- **xior** instead of **axios**
+- **biome** instead of **eslint + prettier**
+
+All tests pass
+
+---
+
 # WhatsApp Business API SDK
 
 Node.js connector for WhatsApp Business Cloud API, with TypeScript support.
