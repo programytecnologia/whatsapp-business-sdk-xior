@@ -11,7 +11,7 @@
 
 Node.js connector for WhatsApp Business Cloud API, with TypeScript support.
 
-This project offers a solution to easily interact with WhatsApp Business Cloud API with Heavy integration testing with real API calls to support implementation stability. Built with Axios and no other extra dependency!
+This project offers a solution to easily interact with WhatsApp Business Cloud API with Heavy integration testing with real API calls to support implementation stability. Built with Xior for edge, bun, and deno compatibility!
 
 The connector is fully typed, tested and documented!
 
@@ -19,7 +19,7 @@ The connector is fully typed, tested and documented!
 
 `npm install whatsapp-business`
 
-`yarn add whatsapp-business`
+`pnpm add whatsapp-business`
 
 ## Documentation
 
@@ -34,19 +34,19 @@ import { WABAClient, WABAErrorAPI } from "whatsapp-business";
 
 //You cant get it from the meta for developers app administration
 const client = new WABAClient({
-	accountId: "<YOUR_ACCOUNT_ID>",
-	apiToken: "<YOUR_API_TOKEN>",
-	phoneId: "<YOUR_BUSINESS_PHONE_ID>",
+ accountId: "<YOUR_ACCOUNT_ID>",
+ apiToken: "<YOUR_API_TOKEN>",
+ phoneId: "<YOUR_BUSINESS_PHONE_ID>",
 });
 
 const foo = async () => {
-	try {
-		const res = await client.getBusinessPhoneNumbers();
-		console.log(res);
-	} catch (err) {
-		const error: WABAErrorAPI = err;
-		console.error(error.message);
-	}
+ try {
+  const res = await client.getBusinessPhoneNumbers();
+  console.log(res);
+ } catch (err) {
+  const error: WABAErrorAPI = err;
+  console.error(error.message);
+ }
 };
 
 foo();
@@ -58,13 +58,13 @@ You can send a text message
 
 ```typescript
 const sendTextMessage = async (body: string, to: string) => {
-	try {
-		const res = await client.sendMessage({ to, type: "text", text: { body } });
-		console.log(res);
-	} catch (err) {
-		const error: WABAErrorAPI = err;
-		console.error(error.message);
-	}
+ try {
+  const res = await client.sendMessage({ to, type: "text", text: { body } });
+  console.log(res);
+ } catch (err) {
+  const error: WABAErrorAPI = err;
+  console.error(error.message);
+ }
 };
 ```
 
@@ -72,18 +72,18 @@ or an image
 
 ```typescript
 const sendPictureMessage = async ({ link, caption }: MediaObject, to: string) => {
-	try {
-		const res = await client.sendMessage({ to, type: "image", image: { link, caption } });
-		console.log(res);
-	} catch (err) {
-		const error: WABAErrorAPI = err;
-		console.error(error.message);
-	}
+ try {
+  const res = await client.sendMessage({ to, type: "image", image: { link, caption } });
+  console.log(res);
+ } catch (err) {
+  const error: WABAErrorAPI = err;
+  console.error(error.message);
+ }
 };
 
 sendPictureMessage(
-	{ link: "<url_link_to_your_image>", caption: "<image_description>" },
-	"<PHONE_NUMBER>"
+ { link: "<url_link_to_your_image>", caption: "<image_description>" },
+ "<PHONE_NUMBER>"
 );
 ```
 
@@ -98,48 +98,48 @@ import { WebhookClient, WABAClient } from "./index";
 
 //The token and path must match the values you set on the application management
 const webhookClient = new WebhookClient({
-	token: "<YOUR_VALIDATION_TOKEN>",
-	path: "/whatsapp/webhook",
-	port: 8080,
+ token: "<YOUR_VALIDATION_TOKEN>",
+ path: "/whatsapp/webhook",
+ port: 8080,
 });
 
 const wabaClient = new WABAClient({
-	accountId: "<ACCOUNT_ID>",
-	phoneId: "<PHONE_ID>",
-	apiToken: "<API_TOKEN>",
+ accountId: "<ACCOUNT_ID>",
+ phoneId: "<PHONE_ID>",
+ apiToken: "<API_TOKEN>",
 });
 
 //Starts a server and triggers the received functions based on the webhook event type
 webhookClient.initWebhook({
-	onStartListening: () => {
-		console.log("Server started listening");
-	},
-	onTextMessageReceived: async (payload, contact) => {
-		try {
-			const messageId = payload.id.toString();
-			const contactNumber = contact.wa_id;
-			//Mark message as read
-			await wabaClient.markMessageAsRead(messageId);
-			//React to message
-			await wabaClient.sendMessage({
-				to: contactNumber,
-				type: "reaction",
-				reaction: { message_id: messageId, emoji: "😄" },
-			});
-			//Respond to message
-			await wabaClient.sendMessage({
-				type: "text",
-				to: contactNumber,
-				text: { body: "Ok!" },
-				//This is optional, it enables reply-to feature
-				context: {
-					message_id: messageId,
-				},
-			});
-		} catch (err) {
-			console.log(err);
-		}
-	},
+ onStartListening: () => {
+  console.log("Server started listening");
+ },
+ onTextMessageReceived: async (payload, contact) => {
+  try {
+   const messageId = payload.id.toString();
+   const contactNumber = contact.wa_id;
+   //Mark message as read
+   await wabaClient.markMessageAsRead(messageId);
+   //React to message
+   await wabaClient.sendMessage({
+    to: contactNumber,
+    type: "reaction",
+    reaction: { message_id: messageId, emoji: "😄" },
+   });
+   //Respond to message
+   await wabaClient.sendMessage({
+    type: "text",
+    to: contactNumber,
+    text: { body: "Ok!" },
+    //This is optional, it enables reply-to feature
+    context: {
+     message_id: messageId,
+    },
+   });
+  } catch (err) {
+   console.log(err);
+  }
+ },
 });
 ```
 
@@ -152,18 +152,18 @@ import express from "express";
 const myApp = express();
 
 const webhookClient = new WebhookClient({
-	token: "<YOUR_VALIDATION_TOKEN>",
-	path: "/whatsapp/webhook",
-	expressApp: {
-		//Set to false if you want to initialize the server yourself
-		//Otherwise, it will start listening when firing initWebhook()
-		shouldStartListening: false,
-		app: myApp,
-	},
+ token: "<YOUR_VALIDATION_TOKEN>",
+ path: "/whatsapp/webhook",
+ expressApp: {
+  //Set to false if you want to initialize the server yourself
+  //Otherwise, it will start listening when firing initWebhook()
+  shouldStartListening: false,
+  app: myApp,
+ },
 });
 
 myApp.listen(8080, () => {
-	console.log("My server nows listens to whatsapp webhooks");
+ console.log("My server nows listens to whatsapp webhooks");
 });
 ```
 
@@ -173,9 +173,9 @@ If you don't provide a express app the client will create a default app on its o
 import { WebhookClient } from "./index";
 
 const webhookClient = new WebhookClient({
-	token: "<YOUR_VALIDATION_TOKEN>",
-	path: "/whatsapp/webhook",
-	port: 8080,
+ token: "<YOUR_VALIDATION_TOKEN>",
+ path: "/whatsapp/webhook",
+ port: 8080,
 });
 
 const app = webhookClient.expressApp.app;
@@ -183,9 +183,9 @@ const app = webhookClient.expressApp.app;
 app.set("trust proxy", true);
 
 webhookClient.initWebhook({
-	onStartListening: () => {
-		console.log("Server started listening");
-	},
+ onStartListening: () => {
+  console.log("Server started listening");
+ },
 });
 ```
 
@@ -219,9 +219,9 @@ webhookClient.initWebhook({
 
 This project uses typescript. Resources are stored in 2 key structures:
 
--   <b>src</b>: the whole connector written in typescript
--   <b>dist</b> the packed bundle of the project for use in nodejs environments (generated when running yarn run build).
--   <b>\_\_tests\_\_</b> all the tests for the connector
+- <b>src</b>: the whole connector written in typescript
+- <b>dist</b> the packed bundle of the project for use in nodejs environments (generated when running pnpm run build).
+- <b>\_\_tests\_\_</b> all the tests for the connector
 
 ## Contribution and thanks
 
