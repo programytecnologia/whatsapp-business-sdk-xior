@@ -40,5 +40,5 @@ export type LiteralNumberUnion<T extends number> = T | (number & {}); // eslint-
  * type ObjectUnionFixed = GeneratedMappedNever<Foo> | Bar;
  */
 export type GenerateMappedNever<T> = {
-	[key in keyof T]: never;
+  [key in keyof T]: never;
 };
