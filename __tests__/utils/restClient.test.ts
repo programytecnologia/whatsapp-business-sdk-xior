@@ -1,7 +1,5 @@
 import { createRestClient } from "../../src/utils/restClient";
 
-type Methods = "get" | "post" | "put" | "delete";
-
 describe("create rest client", () => {
 	beforeEach(() => {
 		jest.restoreAllMocks();
@@ -13,25 +11,51 @@ describe("create rest client", () => {
 		jest.spyOn(restClient, "post");
 		jest.spyOn(restClient, "put");
 		jest.spyOn(restClient, "delete");
-		const call = (method: Methods) =>
-			restClient[method](
-				"hello",
-				{ data: {} },
-				{ headers: { "Content-Type": "multipart/form-data" } }
-			);
-		const methods: Methods[] = ["get", "post", "put", "delete"];
 
-		//Iterative trough each method
-		methods.forEach((method) => {
-			//make a facke api call
-			call(method);
-			//And make sure it was called with the right params
-			expect(restClient[method]).toHaveBeenCalledWith(
-				"hello",
-				{ data: {} },
-				{ headers: { "Content-Type": "multipart/form-data" } }
-			);
-		});
+		// Call each method explicitly to avoid TypeScript union issues
+		restClient.get(
+			"hello",
+			{ foo: "bar" },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
+		expect(restClient.get).toHaveBeenCalledWith(
+			"hello",
+			{ foo: "bar" },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
+
+		restClient.delete(
+			"hello",
+			{ foo: "bar" },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
+		expect(restClient.delete).toHaveBeenCalledWith(
+			"hello",
+			{ foo: "bar" },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
+
+		restClient.post(
+			"hello",
+			{ data: {} },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
+		expect(restClient.post).toHaveBeenCalledWith(
+			"hello",
+			{ data: {} },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
+
+		restClient.put(
+			"hello",
+			{ data: {} },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
+		expect(restClient.put).toHaveBeenCalledWith(
+			"hello",
+			{ data: {} },
+			{ headers: { "Content-Type": "multipart/form-data" } }
+		);
 	});
 
 	it("should use error handler", async () => {
@@ -50,7 +74,7 @@ describe("create rest client", () => {
 			baseURL: "hola",
 		};
 		const restClient = createRestClient(args);
-		expect(restClient.fetch.defaults.headers.authorization).toBe("Bearer 123456");
-		expect(restClient.fetch.defaults.baseURL).toBe("hola");
+		expect(restClient.config.headers.authorization).toBe("Bearer 123456");
+		expect(restClient.config.baseURL).toBe("hola");
 	});
 });
