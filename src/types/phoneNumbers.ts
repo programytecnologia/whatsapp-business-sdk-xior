@@ -36,3 +36,40 @@ export type VerifyPhoneNumberArgs = {
   phoneNumberId: string;
   code: string;
 };
+
+type BlockedUserResult = {
+  input: string;
+  wa_id: string;
+};
+
+export type BlockUsersPayload = {
+  messaging_product: "whatsapp";
+  block_users: { user: string }[];
+};
+
+export type BlockUsersResponse = {
+  messaging_product: "whatsapp";
+  block_users: {
+    added_users: BlockedUserResult[];
+  };
+};
+
+export type UnblockUsersResponse = {
+  messaging_product: "whatsapp";
+  block_users: {
+    removed_users: BlockedUserResult[];
+  };
+};
+
+export type GetBlockedUsersResponse = {
+  data: {
+    messaging_product: "whatsapp";
+    wa_id: string;
+  }[];
+  paging: {
+    cursors: {
+      before: string;
+      after: string;
+    };
+  };
+};

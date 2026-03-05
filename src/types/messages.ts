@@ -25,6 +25,15 @@ export type MarkMessageAsReadPayload = {
   message_id: string;
 };
 
+export type TypingIndicatorPayload = {
+  messaging_product: "whatsapp";
+  status: "read";
+  message_id: string;
+  typing_indicator: {
+    type: "text";
+  };
+};
+
 export type MessageType =
   | "audio"
   | "contacts"

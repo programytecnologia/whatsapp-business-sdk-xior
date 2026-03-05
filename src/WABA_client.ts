@@ -1,11 +1,14 @@
 import fs from "node:fs";
 import FormData from "form-data";
 import type {
+  BlockUsersPayload,
+  BlockUsersResponse,
   BusinessPhoneNumber,
   BusinessProfile,
   BusinessProfileFields,
   BusinessProfileFieldsQuery,
   DefaultResponse,
+  GetBlockedUsersResponse,
   GetBusinessPhoneNumberResponse,
   GetMediaResponse,
   HealthStatusResponse,
@@ -17,6 +20,8 @@ import type {
   RequestPhoneNumberVerificationCodePayload,
   SendMessageResponse,
   SetUpTwoFactorAuthArgs,
+  TypingIndicatorPayload,
+  UnblockUsersResponse,
   UpdateBusinessProfilePayload,
   UpdateIdentityCheckState,
   UploadMediaPayload,
@@ -177,6 +182,23 @@ export class WABAClient {
       },
     );
   }
+  /**
+   * Displays a typing indicator to the WhatsApp user while you prepare a response.
+   * Also marks the message as read. The indicator is dismissed once you respond or after 25 seconds.
+   *
+   * @param message_id the ID of the received message (from the messages webhook)
+   */
+  async sendTypingIndicator(message_id: string) {
+    return this.restClient.post<DefaultResponse, TypingIndicatorPayload>(
+      `${this.phoneId}/messages`,
+      {
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id,
+        typing_indicator: { type: "text" },
+      },
+    );
+  }
   /*
    *
    *	PHONE NUMBERS ENDPOINTS (https://developers.facebook.com/docs/whatsapp/cloud-api/reference/phone-numbers)
@@ -219,6 +241,44 @@ export class WABAClient {
   }
   async deregisterPhone(phoneNumber: string) {
     return this.restClient.post<DefaultResponse>(`${phoneNumber}/deregister`);
+  }
+  /*
+   *
+   *	BLOCK USERS ENDPOINTS (https://developers.facebook.com/documentation/business-messaging/whatsapp/reference/whatsapp-business-phone-number/block-api)
+   *
+   */
+  /**
+   * Blocks one or more users from sending messages to your business phone number.
+   *
+   * @param users array of phone numbers to block (e.g. ["+16505551234"])
+   */
+  async blockUsers(users: string[]) {
+    return this.restClient.post<BlockUsersResponse, BlockUsersPayload>(
+      `${this.phoneId}/block_users`,
+      {
+        messaging_product: "whatsapp",
+        block_users: users.map((user) => ({ user })),
+      },
+    );
+  }
+  /**
+   * Unblocks one or more previously blocked users.
+   *
+   * @param users array of phone numbers to unblock (e.g. ["+16505551234"])
+   */
+  async unblockUsers(users: string[]) {
+    return this.restClient.delete<UnblockUsersResponse>(`${this.phoneId}/block_users`, undefined, {
+      data: {
+        messaging_product: "whatsapp",
+        block_users: users.map((user) => ({ user })),
+      },
+    });
+  }
+  /**
+   * Retrieves the list of users blocked by your business phone number.
+   */
+  async getBlockedUsers() {
+    return this.restClient.get<GetBlockedUsersResponse>(`${this.phoneId}/block_users`);
   }
   async setupTwoStepAuth({ phoneNumberId, ...payload }: SetUpTwoFactorAuthArgs) {
     return this.restClient.post<DefaultResponse>(phoneNumberId, payload);
