@@ -123,9 +123,9 @@ export class WABAClient {
    */
   async downloadMedia(mediaUrl: string, pathToSaveFile: string) {
     try {
-      const response = await this.restClient.get(
+      const response = await this.restClient.get<import("node:stream").Readable>(
         mediaUrl,
-        {},
+        undefined,
         { baseURL: "", responseType: "stream" },
       );
       return response.pipe(fs.createWriteStream(pathToSaveFile));

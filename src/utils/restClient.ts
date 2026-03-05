@@ -1,9 +1,9 @@
-import xior, { type XiorRequestConfig } from "xior";
+import xior, { type XiorError, type XiorRequestConfig, type XiorResponse } from "xior";
 
 interface RestClientParams {
   baseURL?: string;
   apiToken?: string;
-  errorHandler?: (error: any) => any;
+  errorHandler?: (error: XiorError) => unknown;
 }
 
 export const createRestClient = ({ baseURL, apiToken, errorHandler }: RestClientParams) => {
@@ -15,29 +15,32 @@ export const createRestClient = ({ baseURL, apiToken, errorHandler }: RestClient
   };
   const fetch = xior.create(config);
   fetch.interceptors.response.use(
-    (response: any) => response,
-    async (error: any) => errorHandler?.(error),
+    (response: XiorResponse<unknown>) => response,
+    async (error: XiorError) => errorHandler?.(error),
   );
 
   return {
     fetch,
     config, // Expose config for testing
-    get: async <Response = any, Params extends Record<string, any> | undefined = undefined>(
+    get: async <Response = unknown, Params extends Record<string, unknown> | undefined = undefined>(
       endpoint: string,
       params?: Params,
       config?: XiorRequestConfig,
     ) => (await fetch.get<Response>(endpoint, { params, ...config }))?.data,
-    post: async <Response = any, Payload = Record<string, any>>(
+    post: async <Response = unknown, Payload = Record<string, unknown>>(
       endpoint: string,
       payload?: Payload,
       config?: XiorRequestConfig,
     ) => (await fetch.post<Response>(endpoint, payload, config))?.data,
-    put: async <Response = any, Payload = Record<string, any>>(
+    put: async <Response = unknown, Payload = Record<string, unknown>>(
       endpoint: string,
       payload?: Payload,
       config?: XiorRequestConfig,
     ) => (await fetch.put<Response>(endpoint, payload, config))?.data,
-    delete: async <Response = any, Params extends Record<string, any> | undefined = undefined>(
+    delete: async <
+      Response = unknown,
+      Params extends Record<string, unknown> | undefined = undefined,
+    >(
       endpoint: string,
       params?: Params,
       config?: XiorRequestConfig,
