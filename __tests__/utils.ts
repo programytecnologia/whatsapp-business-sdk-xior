@@ -1,14 +1,14 @@
-import {
+import type { WABAErrorAPI } from "../src/types";
+import type { DefaultResponse } from "./../src/types/response";
+import type {
   Webhook,
   WebhookContact,
   WebhookError,
   WebhookMessage,
   WebhookStatus,
 } from "./../src/types/webhooks";
-import { DefaultResponse } from "./../src/types/response";
-import { WABAErrorAPI } from "../src/types";
 
-export const matchesWABAErrorObject = (err: any) =>
+export const matchesWABAErrorObject = (err: unknown) =>
   expect(err).toEqual<WABAErrorAPI>(
     expect.objectContaining({
       code: expect.any(Number),
@@ -23,7 +23,7 @@ export const matchesWABAErrorObject = (err: any) =>
     }),
   );
 
-export const expectDefaultResponse = (data: any) =>
+export const expectDefaultResponse = (data: unknown) =>
   expect(data).toEqual(expect.objectContaining<DefaultResponse>({ success: true }));
 
 const webhookError: WebhookError = {

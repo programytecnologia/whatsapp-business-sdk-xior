@@ -1,4 +1,4 @@
-import xior, { XiorRequestConfig } from "xior";
+import xior, { type XiorRequestConfig } from "xior";
 
 interface RestClientParams {
   baseURL?: string;
@@ -16,7 +16,7 @@ export const createRestClient = ({ baseURL, apiToken, errorHandler }: RestClient
   const fetch = xior.create(config);
   fetch.interceptors.response.use(
     (response: any) => response,
-    async (error: any) => errorHandler && errorHandler(error),
+    async (error: any) => errorHandler?.(error),
   );
 
   return {

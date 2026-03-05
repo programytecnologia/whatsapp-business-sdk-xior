@@ -1,4 +1,4 @@
-import { DefaultWABAErrorAPI, ERROR_CODES } from "../../src/types";
+import { type DefaultWABAErrorAPI, ERROR_CODES } from "../../src/types";
 import { WABAErrorHandler } from "../../src/utils/errorHandler";
 
 describe("Cloud API error handler", () => {

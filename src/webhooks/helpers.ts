@@ -1,5 +1,5 @@
-import { Webhook, WebhookEvents } from "../types";
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
+import type { Webhook, WebhookEvents } from "../types";
 
 export const webhookHandler = (
   body: Webhook,
@@ -18,28 +18,29 @@ export const webhookHandler = (
         //The contact is always the 0 and it is only received when there the messages field is present
         const contact = change?.value?.contacts[0];
         //Call message event
-        onMessageReceived && onMessageReceived(message, contact, change?.value?.metadata);
+        onMessageReceived?.(message, contact, change?.value?.metadata);
         //If the message is type of text, then call the respective event
         if (message.type === "text" && message.text)
-          onTextMessageReceived &&
-            onTextMessageReceived(
-              {
-                id: message.id,
-                type: message.type,
-                text: message.text,
-                from: message.from,
-                timestamp: message.timestamp,
-              },
-              contact,
-              change?.value?.metadata,
-            );
+          onTextMessageReceived?.(
+            {
+              id: message.id,
+              type: message.type,
+              text: message.text,
+              from: message.from,
+              timestamp: message.timestamp,
+            },
+            contact,
+            change?.value?.metadata,
+          );
       });
       //Call status event
       change?.value?.statuses?.forEach((status) => {
-        onStatusReceived && onStatusReceived(status, change?.value?.metadata);
+        onStatusReceived?.(status, change?.value?.metadata);
       });
       //Call error event
-      change?.value?.errors?.forEach((err) => onError && onError(err));
+      change?.value?.errors?.forEach((err) => {
+        onError?.(err);
+      });
     });
   });
 };
@@ -50,7 +51,7 @@ export const postWebhookController = (events: WebhookEvents) => (req: Request, r
 };
 
 export const getWebhookController = (token: string) => (req: Request, res: Response) => {
-  if (req.query["hub.mode"] == "subscribe" && req.query["hub.verify_token"] == token) {
+  if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === token) {
     try {
       return res.send(req.query["hub.challenge"]);
     } catch (err) {

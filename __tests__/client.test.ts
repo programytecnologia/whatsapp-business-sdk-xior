@@ -1,13 +1,13 @@
-import path from "path";
-import { WABAClient } from "../src/WABA_client";
+import path from "node:path";
 import {
-  BusinessPhoneNumber,
+  type BusinessPhoneNumber,
   ERROR_CODES,
-  GetMediaResponse,
-  SendMessageResponse,
-  UploadMediaResponse,
+  type GetMediaResponse,
+  type SendMessageResponse,
+  type UploadMediaResponse,
 } from "../src/types";
-import { WABAErrorAPI } from "../src/types/error";
+import type { WABAErrorAPI } from "../src/types/error";
+import { WABAClient } from "../src/WABA_client";
 import { expectDefaultResponse, matchesWABAErrorObject } from "./utils";
 
 describe("WABA Cloud API endpoints", () => {
@@ -131,7 +131,7 @@ describe("WABA Cloud API endpoints", () => {
           "wamid.HBgNNTQ5MTEyMTc5NjMwNBUCABEYEjJGNjE1QzQ2RjRFQUI4MUVCMAA=",
         );
         expectDefaultResponse(res);
-      } catch (err: any) {
+      } catch (err) {
         //The message id passed is not real.
         //So to test that the endpoints is working we just compare with the err message
         expect(err).toMatchObject<Partial<WABAErrorAPI>>({

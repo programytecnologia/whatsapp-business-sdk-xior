@@ -1,13 +1,13 @@
-import { mockRequest, mockResponse } from "./mocks/express";
 import express, { json, urlencoded } from "express";
-import { WebhookClient, WebhookClientArgs } from "./../src/webhooks/client";
+import type { WebhookEvents } from "../src/types";
+import { WebhookClient, type WebhookClientArgs } from "./../src/webhooks/client";
 import {
   getWebhookController,
   postWebhookController,
   webhookHandler,
 } from "../src/webhooks/helpers";
+import { mockRequest, mockResponse } from "./mocks/express";
 import { webhookBody, webhookBodyFields } from "./utils";
-import { WebhookEvents } from "../src/types";
 
 describe("Webhook Client tests", () => {
   const port = 5000;

@@ -1,6 +1,6 @@
-import { WABAErrorCodes } from "./error";
-import { MessageType, ReactionMessage } from "./messages";
-import { LiteralUnion } from "./utils";
+import type { WABAErrorCodes } from "./error";
+import type { MessageType, ReactionMessage } from "./messages";
+import type { LiteralUnion } from "./utils";
 
 /**
  * The information for the customer who sent a message to the business

@@ -1,27 +1,27 @@
-import fs from "fs";
+import fs from "node:fs";
 import FormData from "form-data";
-import {
-  Message,
-  SendMessageResponse,
-  GetBusinessPhoneNumberResponse,
-  RequestPhoneNumberVerificationCodeArgs,
-  RequestPhoneNumberVerificationCodePayload,
-  VerifyPhoneNumberArgs,
-  RegisterPhoneArgs,
-  RegisterPhonePayload,
-  SetUpTwoFactorAuthArgs,
-  DefaultResponse,
+import type {
+  BusinessPhoneNumber,
   BusinessProfile,
   BusinessProfileFields,
   BusinessProfileFieldsQuery,
-  UpdateBusinessProfilePayload,
+  DefaultResponse,
+  GetBusinessPhoneNumberResponse,
   GetMediaResponse,
+  HealthStatusResponse,
+  MarkMessageAsReadPayload,
+  Message,
+  RegisterPhoneArgs,
+  RegisterPhonePayload,
+  RequestPhoneNumberVerificationCodeArgs,
+  RequestPhoneNumberVerificationCodePayload,
+  SendMessageResponse,
+  SetUpTwoFactorAuthArgs,
+  UpdateBusinessProfilePayload,
+  UpdateIdentityCheckState,
   UploadMediaPayload,
   UploadMediaResponse,
-  MarkMessageAsReadPayload,
-  BusinessPhoneNumber,
-  UpdateIdentityCheckState,
-  HealthStatusResponse,
+  VerifyPhoneNumberArgs,
 } from "./types";
 import { WABAErrorHandler } from "./utils/errorHandler";
 import { createRestClient } from "./utils/restClient";
@@ -232,7 +232,7 @@ export class WABAClient {
    *
    * @param nodeId is optional, defaults to the account_id
    */
-  async getHealthStatus(nodeId?: string) {
+  async getHealthStatus(_nodeId?: string) {
     return this.restClient.get<HealthStatusResponse>(`${this.accountId}?fields=health_status`);
   }
 }

@@ -1,15 +1,13 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 
 jest.mock("express", () => ({
   __esModule: true,
   default: jest.fn(() => ({
-    listen: jest.fn((port: number, callback?: () => void) => callback && callback()),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    use: jest.fn((first: any, second?: any) => ({})),
+    listen: jest.fn((_port: number, callback?: () => void) => callback?.()),
+    use: jest.fn((_first: unknown, _second?: unknown) => ({})),
   })),
   Router: jest.fn(() => ({
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    get: jest.fn((first: string, callback: () => void) => ({})),
+    get: jest.fn((_first: string, _callback: () => void) => ({})),
     post: jest.fn(),
   })),
   json: jest.fn(),

@@ -1,5 +1,5 @@
-import { SupportedLanguagesCodeUnion } from "./languageCodes";
-import { LiteralUnion } from "./utils";
+import type { SupportedLanguagesCodeUnion } from "./languageCodes";
+import type { LiteralUnion } from "./utils";
 
 export type SendMessageResponse = {
   messaging_product: "whatsapp";
@@ -505,7 +505,7 @@ export type TemplateMessageButtonParameter =
        * required for quick_reply buttons
        * Developer-defined payload that is returned when the button is clicked in addition to the display text on the button.
        */
-      payload: any;
+      payload: string;
     }
   | {
       type: "text";

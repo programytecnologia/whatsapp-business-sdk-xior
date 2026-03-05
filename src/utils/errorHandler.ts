@@ -1,4 +1,4 @@
-import { DefaultWABAErrorAPI } from "./../types";
+import type { DefaultWABAErrorAPI } from "./../types";
 import { ERROR_CODES } from "../types";
 
 export const WABAErrorHandler = (error: DefaultWABAErrorAPI) => {

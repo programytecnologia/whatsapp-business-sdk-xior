@@ -1,5 +1,5 @@
-import express, { Router, json, urlencoded } from "express";
-import { WebhookEvents } from "../types";
+import express, { json, Router, urlencoded } from "express";
+import type { WebhookEvents } from "../types";
 import { getWebhookController, postWebhookController } from "./helpers";
 
 export interface WebhookClientArgs {
