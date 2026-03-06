@@ -1,6 +1,9 @@
 import type { WABAErrorCodes } from "./error";
 import type { MessageType, ReactionMessage } from "./messages";
 import type { LiteralUnion } from "./utils";
+import type { WebhookCallConnect, WebhookCallEvent, WebhookCallTerminate } from "./calls";
+
+export type { WebhookCallConnect, WebhookCallTerminate };
 
 /**
  * The information for the customer who sent a message to the business
@@ -427,18 +430,88 @@ export type WebhookStatus = {
    * The WhatsApp ID for the customer that the business, that is subscribed to the webhooks, sent to the customer
    */
   recipient_id: string;
-  status: "delivered" | "failed" | "read" | "sent";
+  status: "delivered" | "failed" | "read" | "sent" | "RINGING" | "ACCEPTED" | "REJECTED";
   /**
    * Date for the status message in unix
    */
   timestamp: string;
 
   errors: Array<WebhookError>;
+  /**
+   * Present for call status webhooks. When `type` is `"call"`, `status` will be
+   * `"RINGING"`, `"ACCEPTED"`, or `"REJECTED"`.
+   */
+  type?: LiteralUnion<"call">;
 };
 
 export type WebhookMetadata = {
   display_phone_number: string;
   phone_number_id: string;
+};
+
+/** The type of data to synchronize from the WhatsApp Business app. */
+export type SmbAppDataSyncType = "smb_app_state_sync" | "history";
+
+/** Events that trigger the account_update webhook. */
+export type AccountUpdateEvent = "PARTNER_REMOVED" | "ACCOUNT_OFFBOARDED" | "ACCOUNT_RECONNECTED";
+
+/** Payload shape for the account_update webhook field. */
+export type WebhookAccountUpdate = {
+  /** The business phone number. Present for PARTNER_REMOVED events. */
+  phone_number?: string;
+  event: AccountUpdateEvent;
+};
+
+/** A message sent by the business via the WhatsApp Business app (smb_message_echoes). */
+export type WebhookMessageEcho = {
+  /** Business phone number that sent the message. */
+  from: string;
+  /** WhatsApp user phone number that received the message. */
+  to: string;
+  id: string;
+  timestamp: string;
+  /** Message type (e.g. "text", "image"). */
+  type: string;
+  [key: string]: unknown;
+};
+
+/** A single WhatsApp contact in the business's address book (smb_app_state_sync). */
+export type WebhookStateSyncContact = {
+  full_name?: string;
+  first_name?: string;
+  phone_number: string;
+};
+
+/** A single contact sync event from an smb_app_state_sync webhook. */
+export type WebhookStateSync = {
+  type: "contact";
+  contact: WebhookStateSyncContact;
+  /** "add" means the contact was added or edited; "remove" means it was deleted. */
+  action: "add" | "remove";
+  metadata: {
+    timestamp: string;
+  };
+};
+
+/** Progress metadata for a history sync chunk. */
+export type WebhookHistoryMeta = {
+  /** Phase of the sync: 0 = day 0–1, 1 = day 1–90, 2 = day 90–180. */
+  phase: 0 | 1 | 2;
+  /** Sequential chunk number. Use to order chunks. */
+  chunk_order: number;
+  /** Overall synchronization progress percentage (0–100). */
+  progress: number;
+};
+
+/** A single item in the history webhook's history array. */
+export type WebhookHistory = {
+  metadata?: WebhookHistoryMeta;
+  threads?: Array<{
+    /** WhatsApp user phone number for this thread. */
+    id: string;
+    messages?: WebhookMessage[];
+  }>;
+  errors?: WebhookError[];
 };
 
 export type WebhookChange = {
@@ -449,8 +522,25 @@ export type WebhookChange = {
     contacts: WebhookContact[];
     messages?: WebhookMessage[];
     statuses?: WebhookStatus[];
+    /** Present on webhooks with `field: "calls"`. Contains call connect/terminate events. */
+    calls?: WebhookCallEvent[];
+    /** Present on smb_app_state_sync webhooks. Contact add/edit/remove events. */
+    state_sync?: WebhookStateSync[];
+    /** Present on smb_message_echoes webhooks. Messages sent from the WBA app. */
+    message_echoes?: WebhookMessageEcho[];
+    /** Present on history webhooks. Synchronized message history chunks. */
+    history?: WebhookHistory[];
+    /** Present on account_update webhooks. WABA lifecycle event. */
+    account_update?: WebhookAccountUpdate;
   };
-  field: LiteralUnion<"messages">;
+  field: LiteralUnion<
+    | "messages"
+    | "calls"
+    | "smb_app_state_sync"
+    | "smb_message_echoes"
+    | "history"
+    | "account_update"
+  >;
 };
 
 /**
@@ -498,4 +588,32 @@ export type WebhookEvents = {
    * Gets fired whenever there is an err
    */
   onError?: (payload: WebhookError) => void;
+  /**
+   * Fired when a business-initiated call is ready to be connected (SDP answer received).
+   * Apply `call.session.sdp` to your WebRTC stack, then call `acceptCall()`.
+   */
+  onCallConnected?: (call: WebhookCallConnect, metadata?: WebhookMetadata) => void;
+  /**
+   * Fired when any call has been terminated (completed or failed).
+   */
+  onCallTerminated?: (call: WebhookCallTerminate, metadata?: WebhookMetadata) => void;
+  /**
+   * Fired for each message sent by the business via the WhatsApp Business app (smb_message_echoes).
+   * Mirror these in your app's conversation history.
+   */
+  onMessageEcho?: (echo: WebhookMessageEcho, metadata?: WebhookMetadata) => void;
+  /**
+   * Fired when the WABA account status changes (account_update).
+   * Includes PARTNER_REMOVED, ACCOUNT_OFFBOARDED, and ACCOUNT_RECONNECTED events.
+   */
+  onAccountUpdate?: (update: WebhookAccountUpdate) => void;
+  /**
+   * Fired for each chunk of synchronized messaging history (history).
+   * Process asynchronously — a single chunk may describe thousands of messages.
+   */
+  onHistorySync?: (history: WebhookHistory, metadata?: WebhookMetadata) => void;
+  /**
+   * Fired when a contact is added, edited, or removed in the WhatsApp Business app (smb_app_state_sync).
+   */
+  onStateSync?: (sync: WebhookStateSync, metadata?: WebhookMetadata) => void;
 };

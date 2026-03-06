@@ -27,6 +27,21 @@ import type {
   UploadMediaPayload,
   UploadMediaResponse,
   VerifyPhoneNumberArgs,
+  CreateTemplatePayload,
+  CreateTemplateResponse,
+  DeleteTemplateResponse,
+  GetTemplatesParams,
+  GetTemplatesResponse,
+  UpdateTemplatePayload,
+  CallActionPayload,
+  CallActionResponse,
+  GetCallPermissionsResponse,
+  GetCallSettingsResponse,
+  InitiateCallPayload,
+  InitiateCallResponse,
+  UpdateCallSettingsPayload,
+  SendMarketingMessagePayload,
+  SmbAppDataSyncType,
 } from "./types";
 import { WABAErrorHandler } from "./utils/errorHandler";
 import { createRestClient } from "./utils/restClient";
@@ -52,7 +67,7 @@ export class WABAClient {
     this.accountId = accountId;
     this.restClient = createRestClient({
       apiToken,
-      baseURL: "https://graph.facebook.com/v19.0",
+      baseURL: "https://graph.facebook.com/v25.0",
       errorHandler: (error) => WABAErrorHandler(error?.response?.data || error),
     });
   }
@@ -285,6 +300,52 @@ export class WABAClient {
   }
   /*
    *
+   *	TEMPLATE ENDPOINTS (https://developers.facebook.com/documentation/business-messaging/whatsapp/reference/whatsapp-business-account/template-api)
+   *
+   */
+  /**
+   * Retrieves the message templates for a WhatsApp Business Account.
+   */
+  async getTemplates(params?: GetTemplatesParams) {
+    return this.restClient.get<GetTemplatesResponse>(
+      `${this.accountId}/message_templates`,
+      undefined,
+      {
+        params,
+      },
+    );
+  }
+  /**
+   * Creates a new message template.
+   */
+  async createTemplate(payload: CreateTemplatePayload) {
+    return this.restClient.post<CreateTemplateResponse, CreateTemplatePayload>(
+      `${this.accountId}/message_templates`,
+      payload,
+    );
+  }
+  /**
+   * Updates an existing message template by template ID.
+   *
+   * @param templateId - The ID of the template to update.
+   */
+  async updateTemplate(templateId: string, payload: UpdateTemplatePayload) {
+    return this.restClient.post<CreateTemplateResponse, UpdateTemplatePayload>(templateId, payload);
+  }
+  /**
+   * Deletes a message template by name.
+   *
+   * @param name - The name of the template to delete.
+   */
+  async deleteTemplate(name: string) {
+    return this.restClient.delete<DeleteTemplateResponse>(
+      `${this.accountId}/message_templates`,
+      undefined,
+      { params: { name } },
+    );
+  }
+  /*
+   *
    *	HEALTH ENDPOINTS (https://developers.facebook.com/docs/whatsapp/cloud-api/health-status)
    *
    */
@@ -294,5 +355,147 @@ export class WABAClient {
    */
   async getHealthStatus(_nodeId?: string) {
     return this.restClient.get<HealthStatusResponse>(`${this.accountId}?fields=health_status`);
+  }
+  /*
+   *
+   *	CALLING API ENDPOINTS (https://developers.facebook.com/documentation/business-messaging/whatsapp/calling/reference)
+   *
+   */
+  /**
+   * Initiates an outbound call to a WhatsApp user.
+   *
+   * Provide an SDP offer in `session`. Listen for the Call Connect webhook to receive
+   * the SDP answer, then call `preAcceptCall()` or `acceptCall()`.
+   */
+  async initiateCall(payload: Omit<InitiateCallPayload, "action">) {
+    return this.restClient.post<InitiateCallResponse, InitiateCallPayload>(
+      `${this.phoneId}/calls`,
+      { ...payload, action: "connect" },
+    );
+  }
+  /**
+   * Pre-accepts an inbound call, establishing the WebRTC media connection before
+   * fully accepting. Recommended to reduce audio clipping at call start.
+   *
+   * @param callId - The call ID received in the Call Connect webhook.
+   */
+  async preAcceptCall(callId: string, session: InitiateCallPayload["session"]) {
+    return this.restClient.post<CallActionResponse, CallActionPayload>(`${this.phoneId}/calls`, {
+      messaging_product: "whatsapp",
+      call_id: callId,
+      action: "pre_accept",
+      session,
+    });
+  }
+  /**
+   * Accepts an inbound call and begins flowing call media.
+   *
+   * @param callId - The call ID received in the Call Connect webhook.
+   */
+  async acceptCall(
+    callId: string,
+    session: InitiateCallPayload["session"],
+    bizOpaqueCallbackData?: string,
+  ) {
+    return this.restClient.post<CallActionResponse, CallActionPayload>(`${this.phoneId}/calls`, {
+      messaging_product: "whatsapp",
+      call_id: callId,
+      action: "accept",
+      session,
+      ...(bizOpaqueCallbackData && { biz_opaque_callback_data: bizOpaqueCallbackData }),
+    });
+  }
+  /**
+   * Rejects an inbound call.
+   *
+   * @param callId - The call ID received in the Call Connect webhook.
+   */
+  async rejectCall(callId: string) {
+    return this.restClient.post<CallActionResponse, CallActionPayload>(`${this.phoneId}/calls`, {
+      messaging_product: "whatsapp",
+      call_id: callId,
+      action: "reject",
+    });
+  }
+  /**
+   * Terminates an active call. Must be called even if an `RTCP BYE` packet is present
+   * in the media path. A Call Terminate webhook will be sent on success.
+   *
+   * @param callId - The call ID to terminate.
+   */
+  async terminateCall(callId: string) {
+    return this.restClient.post<CallActionResponse, CallActionPayload>(`${this.phoneId}/calls`, {
+      messaging_product: "whatsapp",
+      call_id: callId,
+      action: "terminate",
+    });
+  }
+  /**
+   * Retrieves Calling API settings for the business phone number.
+   */
+  async getCallSettings() {
+    return this.restClient.get<GetCallSettingsResponse>(`${this.phoneId}/settings`);
+  }
+  /**
+   * Configures Calling API settings (status, call hours, icon visibility, etc.).
+   */
+  async updateCallSettings(payload: UpdateCallSettingsPayload) {
+    return this.restClient.post<{ success: boolean }, UpdateCallSettingsPayload>(
+      `${this.phoneId}/settings`,
+      payload,
+    );
+  }
+  /**
+   * Returns the current call permission state for a specific WhatsApp user,
+   * including whether your business can initiate a call or send a permission request.
+   *
+   * @param userWaId - The WhatsApp user's phone number.
+   */
+  async getCallPermissions(userWaId: string) {
+    return this.restClient.get<GetCallPermissionsResponse>(
+      `${this.phoneId}/call_permissions`,
+      undefined,
+      { params: { user_wa_id: userWaId } },
+    );
+  }
+  /*
+   *
+   *	MARKETING MESSAGES API ENDPOINT (https://developers.facebook.com/documentation/business-messaging/whatsapp/marketing-messages/send-marketing-messages)
+   *
+   */
+  /**
+   * Sends a marketing template message via the Marketing Messages API.
+   *
+   * Only marketing template messages are supported. To receive incoming messages on the same
+   * phone number, continue using Cloud API in parallel.
+   *
+   * Status webhooks for messages sent via this endpoint will include `pricing.category: "marketing_lite"`
+   * (vs `"marketing"` for the Cloud API path).
+   */
+  async sendMarketingMessage(payload: SendMarketingMessagePayload) {
+    return this.restClient.post<SendMessageResponse, SendMarketingMessagePayload>(
+      `${this.phoneId}/marketing_messages`,
+      payload,
+    );
+  }
+
+  /**
+   * Initiates synchronization of WhatsApp Business app data (contacts or message history).
+   *
+   * - `"smb_app_state_sync"`: synchronizes the business customer's WhatsApp contacts.
+   *   Triggers one or more `smb_app_state_sync` webhooks.
+   * - `"history"`: synchronizes the business customer's message history (up to 180 days).
+   *   Triggers one or more `history` webhooks, or an error webhook if the business declined sharing.
+   *
+   * Must be called after the business completes Coexistence Embedded Signup onboarding.
+   * The response includes a `request_id` for support reference.
+   *
+   * POST /{phone_number_id}/smb_app_data
+   */
+  async syncSmbAppData(syncType: SmbAppDataSyncType) {
+    return this.restClient.post<DefaultResponse>(`${this.phoneId}/smb_app_data`, {
+      messaging_product: "whatsapp",
+      sync_type: syncType,
+    });
   }
 }

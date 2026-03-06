@@ -4,6 +4,14 @@ export type BusinessPhoneNumber = {
   id: string;
   quality_rating: string;
   code_verification_status?: string;
+  /**
+   * Whether this phone number is registered on the WhatsApp Business App (coexistence).
+   */
+  is_on_biz_app?: boolean;
+  /**
+   * The platform type for the phone number. E.g. `"CLOUD_API"`.
+   */
+  platform_type?: string;
 };
 
 export type GetBusinessPhoneNumberResponse = {

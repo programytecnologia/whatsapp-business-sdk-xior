@@ -154,6 +154,13 @@ export type MediaObject = {
    * This path is optionally used with a link when the HTTP/HTTPS link is not directly accessible and requires additional configurations like a bearer token.
    */
   provider?: string;
+  /**
+   * Optional. Only valid when `type` is `"audio"`. Set to `true` to send the audio as a voice note
+   * (renders inline with waveform, auto-download, and transcription support).
+   * The audio file must be an OGG file encoded with the OPUS codec.
+   * Omit or set to `false` to send as a basic audio attachment.
+   */
+  voice?: boolean;
 };
 
 export type ContactMessageAddress = {
@@ -437,7 +444,8 @@ export type InteractiveMessage = {
     | "catalog_message"
     | "flow"
     | "location_request_message"
-    | "cta_url";
+    | "cta_url"
+    | "call_permission_request";
 };
 
 export type ContactMessage = {
@@ -614,4 +622,27 @@ export type ReactionMessage = {
    * - Use an empty string to remove a previously sent emoji.
    */
   emoji: string;
+};
+
+/**
+ * Payload for sending a marketing template message via the Marketing Messages API.
+ *
+ * Same structure as a regular `Message`, but sent to `/{phoneId}/marketing_messages`.
+ * Only marketing template messages are supported — other message types will produce an error.
+ *
+ * Docs: https://developers.facebook.com/documentation/business-messaging/whatsapp/marketing-messages/send-marketing-messages
+ */
+export type SendMarketingMessagePayload = Message & {
+  /**
+   * Controls routing behaviour when Marketing Messages API onboarding requirements are not met.
+   * `"CLOUD_API_FALLBACK"` (default) — falls back to Cloud API.
+   * `"STRICT"` — disables the Cloud API fallback.
+   */
+  product_policy?: "CLOUD_API_FALLBACK" | "STRICT";
+  /**
+   * Enable or disable sharing message delivery activity (e.g. message read) to Meta for this
+   * specific message to help optimise marketing messages.
+   * When not provided, the WABA-level default setting is applied.
+   */
+  message_activity_sharing?: boolean;
 };
