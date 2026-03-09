@@ -45,6 +45,12 @@ export type IGReaction = {
   emoji?: string;
 };
 
+export type IGPostback = {
+  mid?: string;
+  title: string;
+  payload: string;
+};
+
 // ----- Messaging entry -----
 
 export type IGMessaging = {
@@ -55,6 +61,7 @@ export type IGMessaging = {
   referral?: IGReferral;
   read?: IGRead;
   reaction?: IGReaction;
+  postback?: IGPostback;
 };
 
 export type IGEntry = {
@@ -78,6 +85,7 @@ export type InstagramWebhookEvents = {
   onStoryMentionReceived?: (messaging: IGMessaging, attachment: IGWebhookAttachment) => void;
   onReactionReceived?: (messaging: IGMessaging, reaction: IGReaction) => void;
   onReadReceived?: (messaging: IGMessaging, read: IGRead) => void;
+  onPostbackReceived?: (messaging: IGMessaging, postback: IGPostback) => void;
   onReferralReceived?: (messaging: IGMessaging, referral: IGReferral) => void;
   onEchoReceived?: (messaging: IGMessaging, message: IGWebhookMessage) => void;
   onStartListening?: () => void;

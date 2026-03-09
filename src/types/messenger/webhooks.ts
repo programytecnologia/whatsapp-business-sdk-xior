@@ -59,6 +59,12 @@ export type MessengerHandover = {
   metadata?: string;
 };
 
+export type MessengerThreadControlRequest = {
+  /** App ID of the secondary app requesting thread control. */
+  requested_owner_app_id: string;
+  metadata?: string;
+};
+
 // ----- Messaging entry -----
 
 export type MessengerMessaging = {
@@ -74,6 +80,7 @@ export type MessengerMessaging = {
   reaction?: MessengerReaction;
   pass_thread_control?: MessengerHandover;
   take_thread_control?: MessengerHandover;
+  request_thread_control?: MessengerThreadControlRequest;
 };
 
 export type MessengerEntry = {
@@ -103,6 +110,10 @@ export type MessengerWebhookEvents = {
   onDeliveryReceived?: (messaging: MessengerMessaging, delivery: MessengerDelivery) => void;
   onReactionReceived?: (messaging: MessengerMessaging, reaction: MessengerReaction) => void;
   onHandoverReceived?: (messaging: MessengerMessaging, handover: MessengerHandover) => void;
+  onThreadControlRequested?: (
+    messaging: MessengerMessaging,
+    request: MessengerThreadControlRequest,
+  ) => void;
   onEchoReceived?: (messaging: MessengerMessaging, message: MessengerWebhookMessage) => void;
   onStartListening?: () => void;
 };

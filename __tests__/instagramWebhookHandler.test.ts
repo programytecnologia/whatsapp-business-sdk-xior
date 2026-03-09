@@ -71,6 +71,7 @@ describe("instagramWebhookHandler", () => {
       onReactionReceived: jest.fn(),
       onReadReceived: jest.fn(),
       onReferralReceived: jest.fn(),
+      onPostbackReceived: jest.fn(),
       onEchoReceived: jest.fn(),
     };
   });
@@ -199,6 +200,29 @@ describe("instagramWebhookHandler", () => {
         expect.objectContaining({ sender }),
         referral,
       );
+    });
+  });
+
+  // ── Postback ─────────────────────────────────────────────────────────────────
+
+  describe("postback", () => {
+    it("fires onPostbackReceived with the postback object", () => {
+      const postback = { title: "FAQ", payload: "FAQ_PAYLOAD" };
+      instagramWebhookHandler(makeBody({ postback }), events);
+
+      expect(events.onPostbackReceived).toHaveBeenCalledTimes(1);
+      expect(events.onPostbackReceived).toHaveBeenCalledWith(
+        expect.objectContaining({ sender }),
+        postback,
+      );
+    });
+
+    it("does NOT fire any message events for a postback", () => {
+      const postback = { title: "FAQ", payload: "FAQ_PAYLOAD" };
+      instagramWebhookHandler(makeBody({ postback }), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onTextMessageReceived).not.toHaveBeenCalled();
     });
   });
 

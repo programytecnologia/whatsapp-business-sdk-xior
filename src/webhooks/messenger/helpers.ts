@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import type {
   MessengerHandover,
+  MessengerThreadControlRequest,
   MessengerWebhook,
   MessengerWebhookEvents,
 } from "../../types/messenger";
@@ -18,6 +19,7 @@ export const messengerWebhookHandler = (
     onDeliveryReceived,
     onReactionReceived,
     onHandoverReceived,
+    onThreadControlRequested,
     onEchoReceived,
   }: Omit<MessengerWebhookEvents, "onStartListening">,
 ) => {
@@ -68,6 +70,13 @@ export const messengerWebhookHandler = (
       const handover = messaging.pass_thread_control || messaging.take_thread_control;
       if (handover) {
         onHandoverReceived?.(messaging, handover as MessengerHandover);
+      }
+
+      if (messaging.request_thread_control) {
+        onThreadControlRequested?.(
+          messaging,
+          messaging.request_thread_control as MessengerThreadControlRequest,
+        );
       }
     });
   });

@@ -64,6 +64,7 @@ describe("messengerWebhookHandler", () => {
       onDeliveryReceived: jest.fn(),
       onReactionReceived: jest.fn(),
       onHandoverReceived: jest.fn(),
+      onThreadControlRequested: jest.fn(),
       onEchoReceived: jest.fn(),
     };
   });
@@ -240,6 +241,32 @@ describe("messengerWebhookHandler", () => {
       messengerWebhookHandler(makeBody({ take_thread_control }), events);
 
       expect(events.onHandoverReceived).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── Handover — request_thread_control ────────────────────────────────────────
+
+  describe("handover — request_thread_control", () => {
+    it("fires onThreadControlRequested (NOT onHandoverReceived) for request_thread_control", () => {
+      const request_thread_control = {
+        requested_owner_app_id: "secondary-app-id",
+        metadata: "transfer-request",
+      };
+      messengerWebhookHandler(makeBody({ request_thread_control }), events);
+
+      expect(events.onThreadControlRequested).toHaveBeenCalledTimes(1);
+      expect(events.onThreadControlRequested).toHaveBeenCalledWith(
+        expect.objectContaining({ sender }),
+        request_thread_control,
+      );
+      expect(events.onHandoverReceived).not.toHaveBeenCalled();
+    });
+
+    it("works without metadata", () => {
+      const request_thread_control = { requested_owner_app_id: "secondary-app-id" };
+      messengerWebhookHandler(makeBody({ request_thread_control }), events);
+
+      expect(events.onThreadControlRequested).toHaveBeenCalledTimes(1);
     });
   });
 

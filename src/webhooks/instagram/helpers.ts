@@ -11,6 +11,7 @@ export const instagramWebhookHandler = (
     onReactionReceived,
     onReadReceived,
     onReferralReceived,
+    onPostbackReceived,
     onEchoReceived,
   }: Omit<InstagramWebhookEvents, "onStartListening">,
 ) => {
@@ -53,6 +54,10 @@ export const instagramWebhookHandler = (
 
       if (messaging.referral) {
         onReferralReceived?.(messaging, messaging.referral);
+      }
+
+      if (messaging.postback) {
+        onPostbackReceived?.(messaging, messaging.postback);
       }
     });
   });
