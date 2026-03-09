@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { Webhook, WebhookEvents, WebhookCallConnect, WebhookCallTerminate } from "../types";
+import type { Webhook, WebhookCallConnect, WebhookCallTerminate, WebhookEvents } from "../types";
 
 export const webhookHandler = (
   body: Webhook,

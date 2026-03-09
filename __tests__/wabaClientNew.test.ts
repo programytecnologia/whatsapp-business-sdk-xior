@@ -4,13 +4,14 @@
  * All HTTP calls are mocked via jest.spyOn on the public `restClient` so we
  * exercise the payload-building logic without making real network requests.
  */
-import { WABAClient } from "../src/WABA_client";
+
 import type {
   CreateTemplatePayload,
   SendMarketingMessagePayload,
   UpdateCallSettingsPayload,
   UpdateTemplatePayload,
 } from "../src/types";
+import { WABAClient } from "../src/WABA_client";
 
 // ---------------------------------------------------------------------------
 // Shared setup
@@ -27,17 +28,21 @@ const makeClient = () => {
     phoneId: PHONE_ID,
     accountId: ACCOUNT_ID,
   });
-  jest.spyOn(client.restClient, "get").mockResolvedValue(undefined as any);
-  jest.spyOn(client.restClient, "post").mockResolvedValue(undefined as any);
-  jest.spyOn(client.restClient, "delete").mockResolvedValue(undefined as any);
+  jest.spyOn(client.restClient, "get").mockImplementation(() => Promise.resolve(undefined));
+  jest.spyOn(client.restClient, "post").mockImplementation(() => Promise.resolve(undefined));
+  jest.spyOn(client.restClient, "delete").mockImplementation(() => Promise.resolve(undefined));
   return client;
 };
 
 // ---------------------------------------------------------------------------
-// Helper: retrieve the raw args of the nth call
+// Helpers: typed access to spy call arguments (avoids unconstrained `any`)
 // ---------------------------------------------------------------------------
 
-const callArgs = (spy: jest.SpyInstance, n = 0) => spy.mock.calls[n] as unknown[];
+const callEndpoint = (spy: jest.SpyInstance, n = 0): string => spy.mock.calls[n][0] as string;
+const callBody = <T = Record<string, unknown>>(spy: jest.SpyInstance, n = 0): T =>
+  spy.mock.calls[n][1] as unknown as T;
+const callConfig = (spy: jest.SpyInstance, n = 0): { params?: Record<string, unknown> } =>
+  spy.mock.calls[n][2] as unknown as { params?: Record<string, unknown> };
 
 // ---------------------------------------------------------------------------
 // Test suites
@@ -82,31 +87,32 @@ describe("WABAClient — new methods", () => {
     it("getTemplates — passes status filter", async () => {
       await client.getTemplates({ status: "APPROVED" });
 
-      const [endpoint, , config] = callArgs(client.restClient.get as jest.Mock);
+      const endpoint = callEndpoint(client.restClient.get as jest.Mock);
+      const config = callConfig(client.restClient.get as jest.Mock);
       expect(endpoint).toBe(`${ACCOUNT_ID}/message_templates`);
-      expect((config as any).params).toMatchObject({ status: "APPROVED" });
+      expect(config.params).toMatchObject({ status: "APPROVED" });
     });
 
     it("getTemplates — passes category filter", async () => {
       await client.getTemplates({ category: "MARKETING" });
 
-      const [, , config] = callArgs(client.restClient.get as jest.Mock);
-      expect((config as any).params).toMatchObject({ category: "MARKETING" });
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toMatchObject({ category: "MARKETING" });
     });
 
     it("getTemplates — passes name and limit filters together", async () => {
       await client.getTemplates({ name: "order_update", limit: 10 });
 
-      const [, , config] = callArgs(client.restClient.get as jest.Mock);
-      expect((config as any).params).toMatchObject({ name: "order_update", limit: 10 });
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toMatchObject({ name: "order_update", limit: 10 });
     });
 
     it("getTemplates — no extra params when called with no args", async () => {
       await client.getTemplates();
 
       expect(client.restClient.get).toHaveBeenCalledTimes(1);
-      const [, , config] = callArgs(client.restClient.get as jest.Mock);
-      expect((config as any).params).toBeUndefined();
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toBeUndefined();
     });
 
     it("createTemplate — calls POST /{accountId}/message_templates with full payload", async () => {
@@ -140,8 +146,8 @@ describe("WABAClient — new methods", () => {
 
       await client.createTemplate(payload);
 
-      const [, body] = callArgs(client.restClient.post as jest.Mock);
-      expect((body as any).allow_category_change).toBe(false);
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.allow_category_change).toBe(false);
     });
 
     it("updateTemplate — calls POST /{templateId}", async () => {
@@ -159,9 +165,10 @@ describe("WABAClient — new methods", () => {
 
       await client.updateTemplate(TEMPLATE_ID, payload);
 
-      const [endpoint, body] = callArgs(client.restClient.post as jest.Mock);
+      const endpoint = callEndpoint(client.restClient.post as jest.Mock);
+      const body = callBody(client.restClient.post as jest.Mock);
       expect(endpoint).toBe(TEMPLATE_ID);
-      expect((body as any).category).toBe("UTILITY");
+      expect(body.category).toBe("UTILITY");
     });
 
     it("deleteTemplate — calls DELETE /{accountId}/message_templates with name param", async () => {
@@ -177,8 +184,8 @@ describe("WABAClient — new methods", () => {
     it("deleteTemplate — passes the exact template name provided", async () => {
       await client.deleteTemplate("order_confirmation_v2");
 
-      const [, , config] = callArgs(client.restClient.delete as jest.Mock);
-      expect((config as any).params.name).toBe("order_confirmation_v2");
+      const config = callConfig(client.restClient.delete as jest.Mock);
+      expect(config.params?.name).toBe("order_confirmation_v2");
     });
   });
 
@@ -215,8 +222,8 @@ describe("WABAClient — new methods", () => {
           session: sdpOffer,
         });
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect((body as any).action).toBe("connect");
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.action).toBe("connect");
       });
 
       it("includes optional biz_opaque_callback_data when provided", async () => {
@@ -227,8 +234,8 @@ describe("WABAClient — new methods", () => {
           biz_opaque_callback_data: "tracking-ref-42",
         });
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect((body as any).biz_opaque_callback_data).toBe("tracking-ref-42");
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.biz_opaque_callback_data).toBe("tracking-ref-42");
       });
 
       it("does not include biz_opaque_callback_data when omitted", async () => {
@@ -238,8 +245,8 @@ describe("WABAClient — new methods", () => {
           session: sdpOffer,
         });
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect(body as any).not.toHaveProperty("biz_opaque_callback_data");
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body).not.toHaveProperty("biz_opaque_callback_data");
       });
 
       it("includes messaging_product=whatsapp", async () => {
@@ -249,8 +256,8 @@ describe("WABAClient — new methods", () => {
           session: sdpOffer,
         });
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect((body as any).messaging_product).toBe("whatsapp");
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.messaging_product).toBe("whatsapp");
       });
     });
 
@@ -282,23 +289,23 @@ describe("WABAClient — new methods", () => {
       it("includes biz_opaque_callback_data when provided", async () => {
         await client.acceptCall(callId, sdpOffer, "opaque-data");
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect((body as any).biz_opaque_callback_data).toBe("opaque-data");
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.biz_opaque_callback_data).toBe("opaque-data");
       });
 
       it("omits biz_opaque_callback_data when not provided", async () => {
         await client.acceptCall(callId, sdpOffer);
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect(body as any).not.toHaveProperty("biz_opaque_callback_data");
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body).not.toHaveProperty("biz_opaque_callback_data");
       });
 
       it("omits biz_opaque_callback_data when an empty string is passed", async () => {
         await client.acceptCall(callId, sdpOffer, "");
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
+        const body = callBody(client.restClient.post as jest.Mock);
         // empty string is falsy — the spread omits it
-        expect(body as any).not.toHaveProperty("biz_opaque_callback_data");
+        expect(body).not.toHaveProperty("biz_opaque_callback_data");
       });
     });
 
@@ -315,8 +322,8 @@ describe("WABAClient — new methods", () => {
       it("does not include a session in the reject payload", async () => {
         await client.rejectCall(callId);
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect(body as any).not.toHaveProperty("session");
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body).not.toHaveProperty("session");
       });
     });
 
@@ -333,7 +340,7 @@ describe("WABAClient — new methods", () => {
       it("posts to /{phoneId}/calls (not /calls without phoneId prefix)", async () => {
         await client.terminateCall(callId);
 
-        const [endpoint] = callArgs(client.restClient.post as jest.Mock);
+        const endpoint = callEndpoint(client.restClient.post as jest.Mock);
         expect(endpoint).toBe(`${PHONE_ID}/calls`);
         expect(endpoint).not.toBe("/calls");
       });
@@ -356,7 +363,7 @@ describe("WABAClient — new methods", () => {
         ["terminateCall", () => client.terminateCall(callId)],
       ])("%s posts to the /calls endpoint", async (_name, fn) => {
         await fn();
-        const [endpoint] = callArgs(client.restClient.post as jest.Mock);
+        const endpoint = callEndpoint(client.restClient.post as jest.Mock);
         expect(endpoint).toBe(`${PHONE_ID}/calls`);
         jest.clearAllMocks();
       });
@@ -396,8 +403,8 @@ describe("WABAClient — new methods", () => {
 
         await client.updateCallSettings(payload);
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect((body as any).calling.status).toBe("DISABLED");
+        const body = callBody<{ calling: { status: string } }>(client.restClient.post as jest.Mock);
+        expect(body.calling.status).toBe("DISABLED");
       });
     });
 
@@ -415,8 +422,8 @@ describe("WABAClient — new methods", () => {
       it("passes the exact user_wa_id provided", async () => {
         await client.getCallPermissions("+14155551234");
 
-        const [, , config] = callArgs(client.restClient.get as jest.Mock);
-        expect((config as any).params.user_wa_id).toBe("+14155551234");
+        const config = callConfig(client.restClient.get as jest.Mock);
+        expect(config.params?.user_wa_id).toBe("+14155551234");
       });
     });
   });
@@ -451,8 +458,8 @@ describe("WABAClient — new methods", () => {
         product_policy: "STRICT",
       });
 
-      const [, body] = callArgs(client.restClient.post as jest.Mock);
-      expect((body as any).product_policy).toBe("STRICT");
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.product_policy).toBe("STRICT");
     });
 
     it("includes product_policy=CLOUD_API_FALLBACK when set", async () => {
@@ -461,8 +468,8 @@ describe("WABAClient — new methods", () => {
         product_policy: "CLOUD_API_FALLBACK",
       });
 
-      const [, body] = callArgs(client.restClient.post as jest.Mock);
-      expect((body as any).product_policy).toBe("CLOUD_API_FALLBACK");
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.product_policy).toBe("CLOUD_API_FALLBACK");
     });
 
     it("includes message_activity_sharing when provided", async () => {
@@ -471,8 +478,8 @@ describe("WABAClient — new methods", () => {
         message_activity_sharing: true,
       });
 
-      const [, body] = callArgs(client.restClient.post as jest.Mock);
-      expect((body as any).message_activity_sharing).toBe(true);
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.message_activity_sharing).toBe(true);
     });
 
     it("forwards the full payload unchanged to restClient.post", async () => {
@@ -483,14 +490,14 @@ describe("WABAClient — new methods", () => {
       };
       await client.sendMarketingMessage(payload);
 
-      const [, body] = callArgs(client.restClient.post as jest.Mock);
+      const body = callBody(client.restClient.post as jest.Mock);
       expect(body).toEqual(payload);
     });
 
     it("does not post to the regular /messages endpoint", async () => {
       await client.sendMarketingMessage(baseMarketingPayload);
 
-      const [endpoint] = callArgs(client.restClient.post as jest.Mock);
+      const endpoint = callEndpoint(client.restClient.post as jest.Mock);
       expect(endpoint).not.toContain("/messages");
       expect(endpoint).toContain("marketing_messages");
     });
@@ -522,14 +529,14 @@ describe("WABAClient — new methods", () => {
     it("always includes messaging_product=whatsapp", async () => {
       await client.syncSmbAppData("history");
 
-      const [, body] = callArgs(client.restClient.post as jest.Mock);
-      expect((body as any).messaging_product).toBe("whatsapp");
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.messaging_product).toBe("whatsapp");
     });
 
     it("uses the phone number ID, not the account ID, as the path prefix", async () => {
       await client.syncSmbAppData("smb_app_state_sync");
 
-      const [endpoint] = callArgs(client.restClient.post as jest.Mock);
+      const endpoint = callEndpoint(client.restClient.post as jest.Mock);
       expect(endpoint).toMatch(new RegExp(`^${PHONE_ID}/`));
       expect(endpoint).not.toMatch(new RegExp(`^${ACCOUNT_ID}/`));
     });
@@ -539,8 +546,8 @@ describe("WABAClient — new methods", () => {
         jest.clearAllMocks();
         await client.syncSmbAppData(syncType);
 
-        const [, body] = callArgs(client.restClient.post as jest.Mock);
-        expect((body as any).sync_type).toBe(syncType);
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.sync_type).toBe(syncType);
       }
     });
   });

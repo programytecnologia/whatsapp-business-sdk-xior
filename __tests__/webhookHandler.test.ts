@@ -1,4 +1,3 @@
-import { webhookHandler } from "../src/webhooks/helpers";
 import type {
   Webhook,
   WebhookAccountUpdate,
@@ -10,6 +9,7 @@ import type {
   WebhookStateSync,
   WebhookStatus,
 } from "../src/types/webhooks";
+import { webhookHandler } from "../src/webhooks/helpers";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -135,6 +135,7 @@ const historyDeclined: WebhookHistory = {
   errors: [
     {
       // 2593109 is the real API code for "history sharing turned off" — not yet in our enum
+      // biome-ignore lint/suspicious/noExplicitAny: intentional out-of-enum code
       code: 2593109 as any,
       title: "History sync is turned off by the business from the WhatsApp Business App",
       message: "History sync is turned off by the business from the WhatsApp Business App",
@@ -588,6 +589,7 @@ describe("webhookHandler — new features", () => {
               },
             ],
           },
+          // biome-ignore lint/suspicious/noExplicitAny: entry array contains non-union field strings
         ] as any,
       };
 
@@ -745,6 +747,7 @@ describe("webhookHandler — new features", () => {
     });
 
     it("handles an empty entry list without throwing", () => {
+      // biome-ignore lint/suspicious/noExplicitAny: empty array for robustness test
       const body: Webhook = { object: "whatsapp_business_account", entry: [] as any };
       expect(() => webhookHandler(body, events)).not.toThrow();
     });

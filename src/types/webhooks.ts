@@ -1,7 +1,7 @@
+import type { WebhookCallConnect, WebhookCallEvent, WebhookCallTerminate } from "./calls";
 import type { WABAErrorCodes } from "./error";
 import type { MessageType, ReactionMessage } from "./messages";
 import type { LiteralUnion } from "./utils";
-import type { WebhookCallConnect, WebhookCallEvent, WebhookCallTerminate } from "./calls";
 
 export type { WebhookCallConnect, WebhookCallTerminate };
 
