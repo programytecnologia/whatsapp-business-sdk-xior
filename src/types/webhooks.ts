@@ -1,6 +1,7 @@
 import type { WebhookCallConnect, WebhookCallEvent, WebhookCallTerminate } from "./calls";
 import type { WABAErrorCodes } from "./error";
 import type { MessageType, ReactionMessage } from "./messages";
+import type { TemplateCategory } from "./templates";
 import type { LiteralUnion } from "./utils";
 
 export type { WebhookCallConnect, WebhookCallTerminate };
@@ -514,34 +515,161 @@ export type WebhookHistory = {
   errors?: WebhookError[];
 };
 
-export type WebhookChange = {
-  value: {
-    messaging_product: "whatsapp";
-    metadata: WebhookMetadata;
-    errors?: WebhookError[];
-    contacts: WebhookContact[];
-    messages?: WebhookMessage[];
-    statuses?: WebhookStatus[];
-    /** Present on webhooks with `field: "calls"`. Contains call connect/terminate events. */
-    calls?: WebhookCallEvent[];
-    /** Present on smb_app_state_sync webhooks. Contact add/edit/remove events. */
-    state_sync?: WebhookStateSync[];
-    /** Present on smb_message_echoes webhooks. Messages sent from the WBA app. */
-    message_echoes?: WebhookMessageEcho[];
-    /** Present on history webhooks. Synchronized message history chunks. */
-    history?: WebhookHistory[];
-    /** Present on account_update webhooks. WABA lifecycle event. */
-    account_update?: WebhookAccountUpdate;
-  };
-  field: LiteralUnion<
-    | "messages"
-    | "calls"
-    | "smb_app_state_sync"
-    | "smb_message_echoes"
-    | "history"
-    | "account_update"
-  >;
+/** Value shape for messaging-style webhook changes (messages, statuses, calls, echoes, etc.). */
+export type MessagingWebhookValue = {
+  messaging_product: "whatsapp";
+  metadata: WebhookMetadata;
+  errors?: WebhookError[];
+  contacts: WebhookContact[];
+  messages?: WebhookMessage[];
+  statuses?: WebhookStatus[];
+  /** Present on webhooks with `field: "calls"`. Contains call connect/terminate events. */
+  calls?: WebhookCallEvent[];
+  /** Present on smb_app_state_sync webhooks. Contact add/edit/remove events. */
+  state_sync?: WebhookStateSync[];
+  /** Present on smb_message_echoes webhooks. Messages sent from the WBA app. */
+  message_echoes?: WebhookMessageEcho[];
+  /** Present on history webhooks. Synchronized message history chunks. */
+  history?: WebhookHistory[];
+  /** Present on account_update webhooks. WABA lifecycle event. */
+  account_update?: WebhookAccountUpdate;
 };
+
+// ─── Template lifecycle webhooks ──────────────────────────────────────────────
+
+/** Quality score reported on template quality update webhooks. */
+export type TemplateQualityScore = "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+
+/** Payload for `message_template_status_update` webhook field. */
+export type WebhookTemplateStatusUpdate = {
+  message_template_id: number;
+  message_template_name: string;
+  message_template_language: string;
+  /** The lifecycle event that triggered the update. */
+  event: LiteralUnion<
+    "APPROVED" | "REJECTED" | "FLAGGED" | "PAUSED" | "DISABLED" | "PENDING_DELETION"
+  >;
+  /** Present when event is REJECTED. Describes the rejection reason. */
+  reason?: string;
+};
+
+/** Payload for `message_template_quality_update` webhook field. */
+export type WebhookTemplateQualityUpdate = {
+  message_template_id: number;
+  message_template_name: string;
+  previous_quality_score: TemplateQualityScore;
+  new_quality_score: TemplateQualityScore;
+};
+
+/** Payload for `message_template_category_update` webhook field. */
+export type WebhookTemplateCategoryUpdate = {
+  message_template_id: number;
+  message_template_name: string;
+  previous_category: TemplateCategory;
+  new_category: TemplateCategory;
+};
+
+// ─── Phone number webhooks ────────────────────────────────────────────────────
+
+/** Messaging limit tier for a WhatsApp Business phone number. */
+export type PhoneNumberConversationLimit =
+  | "TIER_50"
+  | "TIER_250"
+  | "TIER_1K"
+  | "TIER_10K"
+  | "TIER_100K"
+  | "TIER_UNLIMITED";
+
+/** Payload for `phone_number_quality_update` webhook field. */
+export type WebhookPhoneNumberQualityUpdate = {
+  display_phone_number: string;
+  event: "QUALITY_RATING_RESTORED" | "QUALITY_RATING_CHANGED";
+  /** Messaging tier limit, present when quality rating affects the sending tier. */
+  current_limit?: PhoneNumberConversationLimit;
+};
+
+/** Payload for `phone_number_name_update` webhook field. */
+export type WebhookPhoneNumberNameUpdate = {
+  display_phone_number: string;
+  phone_number: string;
+  requested_verified_name: string;
+  /** Present when decision is DECLINED. */
+  rejection_reason?: string;
+  decision: "APPROVED" | "DECLINED";
+};
+
+// ─── Flows webhooks ───────────────────────────────────────────────────────────
+
+/** Events that can be reported on `flows` webhooks. */
+export type WebhookFlowEvent = LiteralUnion<
+  | "ENDPOINT_NOT_CONFIGURED"
+  | "ENDPOINT_RETURNED_HTTP_ERROR"
+  | "ENDPOINT_TIMEOUT"
+  | "DEPRECATED"
+  | "PUBLISHED"
+  | "DELETED"
+  | "BLOCKED"
+>;
+
+/** Payload for `flows` webhook field. */
+export type WebhookFlow = {
+  flow_id: string;
+  event: WebhookFlowEvent;
+};
+
+// ─── Security / capability / review / alert webhooks ─────────────────────────
+
+/** Payload for `security` webhook field. */
+export type WebhookSecurity = {
+  /** The security event that occurred. */
+  event: LiteralUnion<"TWO_STEP_VERIFICATION_DISABLED">;
+};
+
+/** Payload for `business_capability_update` webhook field. */
+export type WebhookBusinessCapabilityUpdate = {
+  max_daily_conversation_per_phone?: number;
+  current_limit?: PhoneNumberConversationLimit;
+  max_phone_numbers_per_business?: number;
+  max_phone_numbers_per_waba?: number;
+};
+
+/** Payload for `account_review_update` webhook field. */
+export type WebhookAccountReviewUpdate = {
+  decision: "APPROVED" | "REJECTED";
+};
+
+/** Payload for `account_alerts` webhook field. */
+export type WebhookAccountAlert = {
+  /** The alert type. */
+  type: LiteralUnion<"FLAGGED" | "RESTRICTED">;
+  /** Human-readable details about the alert. */
+  details: string;
+};
+
+// ─── WebhookChange discriminated union ───────────────────────────────────────
+
+export type WebhookChange =
+  | {
+      field: LiteralUnion<
+        | "messages"
+        | "calls"
+        | "smb_app_state_sync"
+        | "smb_message_echoes"
+        | "history"
+        | "account_update"
+      >;
+      value: MessagingWebhookValue;
+    }
+  | { field: "message_template_status_update"; value: WebhookTemplateStatusUpdate }
+  | { field: "message_template_quality_update"; value: WebhookTemplateQualityUpdate }
+  | { field: "message_template_category_update"; value: WebhookTemplateCategoryUpdate }
+  | { field: "phone_number_quality_update"; value: WebhookPhoneNumberQualityUpdate }
+  | { field: "phone_number_name_update"; value: WebhookPhoneNumberNameUpdate }
+  | { field: "flows"; value: WebhookFlow }
+  | { field: "security"; value: WebhookSecurity }
+  | { field: "business_capability_update"; value: WebhookBusinessCapabilityUpdate }
+  | { field: "account_review_update"; value: WebhookAccountReviewUpdate }
+  | { field: "account_alerts"; value: WebhookAccountAlert };
 
 /**
  * Webhooks are triggered when a customer performs an action or the status for a message a business sends a customer changes.
@@ -616,4 +744,54 @@ export type WebhookEvents = {
    * Fired when a contact is added, edited, or removed in the WhatsApp Business app (smb_app_state_sync).
    */
   onStateSync?: (sync: WebhookStateSync, metadata?: WebhookMetadata) => void;
+  /**
+   * Fired when a template's lifecycle status changes (approved, rejected, flagged, paused, etc.).
+   * Subscribe to the `message_template_status_update` webhook field.
+   */
+  onTemplateStatusUpdate?: (update: WebhookTemplateStatusUpdate) => void;
+  /**
+   * Fired when a template's quality rating changes (GREEN → YELLOW → RED or restored).
+   * Subscribe to the `message_template_quality_update` webhook field.
+   */
+  onTemplateQualityUpdate?: (update: WebhookTemplateQualityUpdate) => void;
+  /**
+   * Fired when Meta auto-recategorizes a template (e.g. MARKETING → UTILITY).
+   * Subscribe to the `message_template_category_update` webhook field.
+   */
+  onTemplateCategoryUpdate?: (update: WebhookTemplateCategoryUpdate) => void;
+  /**
+   * Fired when a phone number's quality rating or messaging tier changes.
+   * Subscribe to the `phone_number_quality_update` webhook field.
+   */
+  onPhoneNumberQualityUpdate?: (update: WebhookPhoneNumberQualityUpdate) => void;
+  /**
+   * Fired when a display name change request is approved or declined.
+   * Subscribe to the `phone_number_name_update` webhook field.
+   */
+  onPhoneNumberNameUpdate?: (update: WebhookPhoneNumberNameUpdate) => void;
+  /**
+   * Fired when a WhatsApp Flow status changes (published, deleted, endpoint errors, etc.).
+   * Subscribe to the `flows` webhook field.
+   */
+  onFlowUpdate?: (flow: WebhookFlow) => void;
+  /**
+   * Fired for account security alerts such as two-step verification being disabled.
+   * Subscribe to the `security` webhook field.
+   */
+  onSecurityAlert?: (alert: WebhookSecurity) => void;
+  /**
+   * Fired when the WABA messaging tier or phone number limits change.
+   * Subscribe to the `business_capability_update` webhook field.
+   */
+  onBusinessCapabilityUpdate?: (update: WebhookBusinessCapabilityUpdate) => void;
+  /**
+   * Fired when a business account review decision is made (approved or rejected).
+   * Subscribe to the `account_review_update` webhook field.
+   */
+  onAccountReviewUpdate?: (update: WebhookAccountReviewUpdate) => void;
+  /**
+   * Fired for policy-related platform alerts (FLAGGED, RESTRICTED, etc.).
+   * Subscribe to the `account_alerts` webhook field.
+   */
+  onAccountAlert?: (alert: WebhookAccountAlert) => void;
 };

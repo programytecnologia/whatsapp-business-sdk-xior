@@ -1,13 +1,23 @@
 import type {
   Webhook,
+  WebhookAccountAlert,
+  WebhookAccountReviewUpdate,
   WebhookAccountUpdate,
+  WebhookBusinessCapabilityUpdate,
   WebhookCallConnect,
   WebhookCallTerminate,
   WebhookEvents,
+  WebhookFlow,
   WebhookHistory,
   WebhookMessageEcho,
+  WebhookPhoneNumberNameUpdate,
+  WebhookPhoneNumberQualityUpdate,
+  WebhookSecurity,
   WebhookStateSync,
   WebhookStatus,
+  WebhookTemplateCategoryUpdate,
+  WebhookTemplateQualityUpdate,
+  WebhookTemplateStatusUpdate,
 } from "../src/types/webhooks";
 import { webhookHandler } from "../src/webhooks/helpers";
 
@@ -171,6 +181,16 @@ describe("webhookHandler — new features", () => {
       onAccountUpdate: jest.fn(),
       onHistorySync: jest.fn(),
       onStateSync: jest.fn(),
+      onTemplateStatusUpdate: jest.fn(),
+      onTemplateQualityUpdate: jest.fn(),
+      onTemplateCategoryUpdate: jest.fn(),
+      onPhoneNumberQualityUpdate: jest.fn(),
+      onPhoneNumberNameUpdate: jest.fn(),
+      onFlowUpdate: jest.fn(),
+      onSecurityAlert: jest.fn(),
+      onBusinessCapabilityUpdate: jest.fn(),
+      onAccountReviewUpdate: jest.fn(),
+      onAccountAlert: jest.fn(),
     };
   });
 
@@ -777,6 +797,596 @@ describe("webhookHandler — new features", () => {
       expect(events.onAccountUpdate).not.toHaveBeenCalled();
       expect(events.onHistorySync).not.toHaveBeenCalled();
       expect(events.onStateSync).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when all admin event handlers are omitted and admin webhooks arrive", () => {
+      const minimalEvents: Omit<WebhookEvents, "onStartListening"> = {};
+      const adminFields = [
+        [
+          "message_template_status_update",
+          {
+            message_template_id: 1,
+            message_template_name: "t",
+            message_template_language: "en_US",
+            event: "APPROVED",
+          },
+        ],
+        [
+          "message_template_quality_update",
+          {
+            message_template_id: 1,
+            message_template_name: "t",
+            previous_quality_score: "GREEN",
+            new_quality_score: "YELLOW",
+          },
+        ],
+        [
+          "message_template_category_update",
+          {
+            message_template_id: 1,
+            message_template_name: "t",
+            previous_category: "MARKETING",
+            new_category: "UTILITY",
+          },
+        ],
+        [
+          "phone_number_quality_update",
+          { display_phone_number: "+1555", event: "QUALITY_RATING_CHANGED" },
+        ],
+        [
+          "phone_number_name_update",
+          {
+            display_phone_number: "+1555",
+            phone_number: "+1555",
+            requested_verified_name: "Acme",
+            decision: "APPROVED",
+          },
+        ],
+        ["flows", { flow_id: "f1", event: "PUBLISHED" }],
+        ["security", { event: "TWO_STEP_VERIFICATION_DISABLED" }],
+        ["business_capability_update", { max_daily_conversation_per_phone: 1000 }],
+        ["account_review_update", { decision: "APPROVED" }],
+        ["account_alerts", { type: "FLAGGED", details: "Policy violation" }],
+      ] as const;
+
+      for (const [field, value] of adminFields) {
+        const body = {
+          object: "whatsapp_business_account",
+          entry: [{ id: "w", changes: [{ field, value }] }],
+        } as unknown as Webhook;
+        expect(() => webhookHandler(body, minimalEvents)).not.toThrow();
+      }
+    });
+  });
+
+  // ─── message_template_status_update ────────────────────────────────
+
+  describe("message_template_status_update field", () => {
+    const approved: WebhookTemplateStatusUpdate = {
+      message_template_id: 594434972594070,
+      message_template_name: "order_confirmation",
+      message_template_language: "en_US",
+      event: "APPROVED",
+    };
+
+    const rejected: WebhookTemplateStatusUpdate = {
+      message_template_id: 594434972594071,
+      message_template_name: "promo_summer",
+      message_template_language: "es_ES",
+      event: "REJECTED",
+      reason: "INVALID_FORMAT",
+    };
+
+    const makeTemplateStatusBody = (value: WebhookTemplateStatusUpdate) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "message_template_status_update", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onTemplateStatusUpdate with the correct payload for APPROVED", () => {
+      webhookHandler(makeTemplateStatusBody(approved), events);
+
+      expect(events.onTemplateStatusUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onTemplateStatusUpdate).toHaveBeenCalledWith(approved);
+    });
+
+    it("fires onTemplateStatusUpdate for REJECTED and includes reason", () => {
+      webhookHandler(makeTemplateStatusBody(rejected), events);
+
+      expect(events.onTemplateStatusUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "REJECTED", reason: "INVALID_FORMAT" }),
+      );
+    });
+
+    it("does not fire messaging events (onMessageReceived, onStatusReceived, etc.)", () => {
+      webhookHandler(makeTemplateStatusBody(approved), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onStatusReceived).not.toHaveBeenCalled();
+      expect(events.onAccountUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onTemplateStatusUpdate is not registered", () => {
+      const { onTemplateStatusUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeTemplateStatusBody(approved), rest)).not.toThrow();
+    });
+
+    it("payload includes template id, name, and language", () => {
+      webhookHandler(makeTemplateStatusBody(approved), events);
+
+      expect(events.onTemplateStatusUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message_template_id: 594434972594070,
+          message_template_name: "order_confirmation",
+          message_template_language: "en_US",
+        }),
+      );
+    });
+  });
+
+  // ─── message_template_quality_update ─────────────────────────────
+
+  describe("message_template_quality_update field", () => {
+    const qualityUpdate: WebhookTemplateQualityUpdate = {
+      message_template_id: 123456789,
+      message_template_name: "order_confirmation",
+      previous_quality_score: "GREEN",
+      new_quality_score: "YELLOW",
+    };
+
+    const makeBody2 = (value: WebhookTemplateQualityUpdate) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "message_template_quality_update", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onTemplateQualityUpdate with the correct payload", () => {
+      webhookHandler(makeBody2(qualityUpdate), events);
+
+      expect(events.onTemplateQualityUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onTemplateQualityUpdate).toHaveBeenCalledWith(qualityUpdate);
+    });
+
+    it("reports GREEN -> RED downgrade correctly", () => {
+      const severe: WebhookTemplateQualityUpdate = {
+        ...qualityUpdate,
+        previous_quality_score: "GREEN",
+        new_quality_score: "RED",
+      };
+      webhookHandler(makeBody2(severe), events);
+
+      expect(events.onTemplateQualityUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          previous_quality_score: "GREEN",
+          new_quality_score: "RED",
+        }),
+      );
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody2(qualityUpdate), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onTemplateStatusUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onTemplateQualityUpdate is not registered", () => {
+      const { onTemplateQualityUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody2(qualityUpdate), rest)).not.toThrow();
+    });
+  });
+
+  // ─── message_template_category_update ────────────────────────────
+
+  describe("message_template_category_update field", () => {
+    const categoryUpdate: WebhookTemplateCategoryUpdate = {
+      message_template_id: 987654321,
+      message_template_name: "promo_summer",
+      previous_category: "MARKETING",
+      new_category: "UTILITY",
+    };
+
+    const makeBody3 = (value: WebhookTemplateCategoryUpdate) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "message_template_category_update", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onTemplateCategoryUpdate with the correct payload", () => {
+      webhookHandler(makeBody3(categoryUpdate), events);
+
+      expect(events.onTemplateCategoryUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onTemplateCategoryUpdate).toHaveBeenCalledWith(categoryUpdate);
+    });
+
+    it("payload includes previous and new category", () => {
+      webhookHandler(makeBody3(categoryUpdate), events);
+
+      expect(events.onTemplateCategoryUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ previous_category: "MARKETING", new_category: "UTILITY" }),
+      );
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody3(categoryUpdate), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onTemplateStatusUpdate).not.toHaveBeenCalled();
+      expect(events.onTemplateQualityUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onTemplateCategoryUpdate is not registered", () => {
+      const { onTemplateCategoryUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody3(categoryUpdate), rest)).not.toThrow();
+    });
+  });
+
+  // ─── phone_number_quality_update ───────────────────────────────────
+
+  describe("phone_number_quality_update field", () => {
+    const qualityChanged: WebhookPhoneNumberQualityUpdate = {
+      display_phone_number: "+1 555-078-3881",
+      event: "QUALITY_RATING_CHANGED",
+      current_limit: "TIER_1K",
+    };
+
+    const qualityRestored: WebhookPhoneNumberQualityUpdate = {
+      display_phone_number: "+1 555-078-3881",
+      event: "QUALITY_RATING_RESTORED",
+    };
+
+    const makeBody4 = (value: WebhookPhoneNumberQualityUpdate) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "phone_number_quality_update", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onPhoneNumberQualityUpdate for QUALITY_RATING_CHANGED", () => {
+      webhookHandler(makeBody4(qualityChanged), events);
+
+      expect(events.onPhoneNumberQualityUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onPhoneNumberQualityUpdate).toHaveBeenCalledWith(qualityChanged);
+    });
+
+    it("fires onPhoneNumberQualityUpdate for QUALITY_RATING_RESTORED (no current_limit)", () => {
+      webhookHandler(makeBody4(qualityRestored), events);
+
+      expect(events.onPhoneNumberQualityUpdate).toHaveBeenCalledWith(qualityRestored);
+      const [arg] = (events.onPhoneNumberQualityUpdate as jest.Mock).mock.calls[0];
+      expect(arg).not.toHaveProperty("current_limit");
+    });
+
+    it("payload includes display_phone_number and current_limit tier", () => {
+      webhookHandler(makeBody4(qualityChanged), events);
+
+      expect(events.onPhoneNumberQualityUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          display_phone_number: "+1 555-078-3881",
+          current_limit: "TIER_1K",
+        }),
+      );
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody4(qualityChanged), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onAccountUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onPhoneNumberQualityUpdate is not registered", () => {
+      const { onPhoneNumberQualityUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody4(qualityChanged), rest)).not.toThrow();
+    });
+  });
+
+  // ─── phone_number_name_update ──────────────────────────────────────
+
+  describe("phone_number_name_update field", () => {
+    const nameApproved: WebhookPhoneNumberNameUpdate = {
+      display_phone_number: "+1 555-078-3881",
+      phone_number: "+15550783881",
+      requested_verified_name: "Acme Corp",
+      decision: "APPROVED",
+    };
+
+    const nameDeclined: WebhookPhoneNumberNameUpdate = {
+      display_phone_number: "+1 555-078-3881",
+      phone_number: "+15550783881",
+      requested_verified_name: "Acme Corp™",
+      rejection_reason: "INVALID_FORMAT",
+      decision: "DECLINED",
+    };
+
+    const makeBody5 = (value: WebhookPhoneNumberNameUpdate) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "phone_number_name_update", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onPhoneNumberNameUpdate for APPROVED decision", () => {
+      webhookHandler(makeBody5(nameApproved), events);
+
+      expect(events.onPhoneNumberNameUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onPhoneNumberNameUpdate).toHaveBeenCalledWith(nameApproved);
+    });
+
+    it("fires onPhoneNumberNameUpdate for DECLINED decision and includes rejection_reason", () => {
+      webhookHandler(makeBody5(nameDeclined), events);
+
+      expect(events.onPhoneNumberNameUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          decision: "DECLINED",
+          rejection_reason: "INVALID_FORMAT",
+        }),
+      );
+    });
+
+    it("APPROVED payload omits rejection_reason", () => {
+      webhookHandler(makeBody5(nameApproved), events);
+
+      const [arg] = (events.onPhoneNumberNameUpdate as jest.Mock).mock.calls[0];
+      expect(arg).not.toHaveProperty("rejection_reason");
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody5(nameApproved), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onPhoneNumberNameUpdate is not registered", () => {
+      const { onPhoneNumberNameUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody5(nameApproved), rest)).not.toThrow();
+    });
+  });
+
+  // ─── flows ────────────────────────────────────────────────────────
+
+  describe("flows field", () => {
+    const flowPublished: WebhookFlow = { flow_id: "flow-10001", event: "PUBLISHED" };
+    const flowEndpointError: WebhookFlow = {
+      flow_id: "flow-10002",
+      event: "ENDPOINT_NOT_CONFIGURED",
+    };
+    const flowBlocked: WebhookFlow = { flow_id: "flow-10003", event: "BLOCKED" };
+
+    const makeBody6 = (value: WebhookFlow) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "flows", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onFlowUpdate for PUBLISHED", () => {
+      webhookHandler(makeBody6(flowPublished), events);
+
+      expect(events.onFlowUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onFlowUpdate).toHaveBeenCalledWith(flowPublished);
+    });
+
+    it("fires onFlowUpdate for ENDPOINT_NOT_CONFIGURED", () => {
+      webhookHandler(makeBody6(flowEndpointError), events);
+
+      expect(events.onFlowUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ flow_id: "flow-10002", event: "ENDPOINT_NOT_CONFIGURED" }),
+      );
+    });
+
+    it("fires onFlowUpdate for BLOCKED", () => {
+      webhookHandler(makeBody6(flowBlocked), events);
+
+      expect(events.onFlowUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "BLOCKED" }),
+      );
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody6(flowPublished), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onAccountUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onFlowUpdate is not registered", () => {
+      const { onFlowUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody6(flowPublished), rest)).not.toThrow();
+    });
+  });
+
+  // ─── security ──────────────────────────────────────────────────
+
+  describe("security field", () => {
+    const twoStepDisabled = {
+      event: "TWO_STEP_VERIFICATION_DISABLED",
+    } satisfies WebhookSecurity;
+
+    const makeBody7 = (value: WebhookSecurity) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "security", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onSecurityAlert for TWO_STEP_VERIFICATION_DISABLED", () => {
+      webhookHandler(makeBody7(twoStepDisabled), events);
+
+      expect(events.onSecurityAlert).toHaveBeenCalledTimes(1);
+      expect(events.onSecurityAlert).toHaveBeenCalledWith(twoStepDisabled);
+    });
+
+    it("payload includes the event field", () => {
+      webhookHandler(makeBody7(twoStepDisabled), events);
+
+      expect(events.onSecurityAlert).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "TWO_STEP_VERIFICATION_DISABLED" }),
+      );
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody7(twoStepDisabled), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onAccountUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onSecurityAlert is not registered", () => {
+      const { onSecurityAlert: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody7(twoStepDisabled), rest)).not.toThrow();
+    });
+  });
+
+  // ─── business_capability_update ────────────────────────────────────
+
+  describe("business_capability_update field", () => {
+    const tierUpgrade: WebhookBusinessCapabilityUpdate = {
+      max_daily_conversation_per_phone: 10000,
+      current_limit: "TIER_10K",
+    };
+
+    const limitExpanded: WebhookBusinessCapabilityUpdate = {
+      max_phone_numbers_per_business: 20,
+      max_phone_numbers_per_waba: 10,
+    };
+
+    const makeBody8 = (value: WebhookBusinessCapabilityUpdate) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "business_capability_update", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onBusinessCapabilityUpdate with tier upgrade payload", () => {
+      webhookHandler(makeBody8(tierUpgrade), events);
+
+      expect(events.onBusinessCapabilityUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onBusinessCapabilityUpdate).toHaveBeenCalledWith(tierUpgrade);
+    });
+
+    it("fires onBusinessCapabilityUpdate with phone number limits payload", () => {
+      webhookHandler(makeBody8(limitExpanded), events);
+
+      expect(events.onBusinessCapabilityUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ max_phone_numbers_per_business: 20 }),
+      );
+    });
+
+    it("payload includes current_limit tier", () => {
+      webhookHandler(makeBody8(tierUpgrade), events);
+
+      expect(events.onBusinessCapabilityUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ current_limit: "TIER_10K" }),
+      );
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody8(tierUpgrade), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onBusinessCapabilityUpdate is not registered", () => {
+      const { onBusinessCapabilityUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody8(tierUpgrade), rest)).not.toThrow();
+    });
+  });
+
+  // ─── account_review_update ──────────────────────────────────────────
+
+  describe("account_review_update field", () => {
+    const reviewApproved: WebhookAccountReviewUpdate = { decision: "APPROVED" };
+    const reviewRejected: WebhookAccountReviewUpdate = { decision: "REJECTED" };
+
+    const makeBody9 = (value: WebhookAccountReviewUpdate) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "account_review_update", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onAccountReviewUpdate for APPROVED", () => {
+      webhookHandler(makeBody9(reviewApproved), events);
+
+      expect(events.onAccountReviewUpdate).toHaveBeenCalledTimes(1);
+      expect(events.onAccountReviewUpdate).toHaveBeenCalledWith(reviewApproved);
+    });
+
+    it("fires onAccountReviewUpdate for REJECTED", () => {
+      webhookHandler(makeBody9(reviewRejected), events);
+
+      expect(events.onAccountReviewUpdate).toHaveBeenCalledWith({ decision: "REJECTED" });
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody9(reviewApproved), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onAccountUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onAccountReviewUpdate is not registered", () => {
+      const { onAccountReviewUpdate: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody9(reviewApproved), rest)).not.toThrow();
+    });
+  });
+
+  // ─── account_alerts ─────────────────────────────────────────────
+
+  describe("account_alerts field", () => {
+    const flaggedAlert: WebhookAccountAlert = {
+      type: "FLAGGED",
+      details: "Your account has been flagged for policy violations.",
+    };
+
+    const restrictedAlert: WebhookAccountAlert = {
+      type: "RESTRICTED",
+      details: "Messaging has been restricted due to low quality rating.",
+    };
+
+    const makeBody10 = (value: WebhookAccountAlert) =>
+      ({
+        object: "whatsapp_business_account",
+        entry: [{ id: "w", changes: [{ field: "account_alerts", value }] }],
+      }) as unknown as Webhook;
+
+    it("fires onAccountAlert for FLAGGED type", () => {
+      webhookHandler(makeBody10(flaggedAlert), events);
+
+      expect(events.onAccountAlert).toHaveBeenCalledTimes(1);
+      expect(events.onAccountAlert).toHaveBeenCalledWith(flaggedAlert);
+    });
+
+    it("fires onAccountAlert for RESTRICTED type", () => {
+      webhookHandler(makeBody10(restrictedAlert), events);
+
+      expect(events.onAccountAlert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "RESTRICTED",
+          details: expect.stringContaining("restricted"),
+        }),
+      );
+    });
+
+    it("payload includes type and details", () => {
+      webhookHandler(makeBody10(flaggedAlert), events);
+
+      expect(events.onAccountAlert).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "FLAGGED", details: expect.any(String) }),
+      );
+    });
+
+    it("does not fire messaging events", () => {
+      webhookHandler(makeBody10(flaggedAlert), events);
+
+      expect(events.onMessageReceived).not.toHaveBeenCalled();
+      expect(events.onAccountUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when onAccountAlert is not registered", () => {
+      const { onAccountAlert: _, ...rest } = events;
+      expect(() => webhookHandler(makeBody10(flaggedAlert), rest)).not.toThrow();
+    });
+
+    it("does not fire onAccountUpdate for account_alerts (different field)", () => {
+      webhookHandler(makeBody10(flaggedAlert), events);
+
+      expect(events.onAccountUpdate).not.toHaveBeenCalled();
     });
   });
 });
