@@ -9,7 +9,6 @@ Built with [`xior`](https://github.com/suhaotian/xior) for edge, Bun, and Deno c
 ```bash
 npm install @programytecnologia/whatsapp-business-sdk
 pnpm add @programytecnologia/whatsapp-business-sdk
-yarn add @programytecnologia/whatsapp-business-sdk
 ```
 
 ## Channels

@@ -20,9 +20,6 @@ npm install whatsapp-business-sdk
 
 # pnpm
 pnpm add whatsapp-business-sdk
-
-# yarn
-yarn add whatsapp-business-sdk
 ```
 
 ---
