@@ -10,6 +10,7 @@
       "url": "https://github.com/ProgramyTecnologia/whatsapp-business-sdk-xior/blob/main/LICENSE"
     }
   ],
+  "packageManager": "pnpm@10.28.1",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
   "files": [
