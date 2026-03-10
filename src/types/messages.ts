@@ -457,7 +457,8 @@ export type InteractiveMessage = {
     | "flow"
     | "location_request_message"
     | "cta_url"
-    | "call_permission_request";
+    | "call_permission_request"
+    | "request_contact_info";
 };
 
 export type ContactMessage = {

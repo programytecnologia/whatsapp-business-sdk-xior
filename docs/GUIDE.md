@@ -123,6 +123,19 @@ await client.sendMessage({
 	},
 });
 
+// Interactive — request contact info (no template needed)
+// When the user taps the button, their vCard and phone number are sent back
+// as a contacts webhook message (message.type === "contacts").
+await client.sendMessage({
+	to: "+16505551234",
+	type: "interactive",
+	interactive: {
+		type: "request_contact_info",
+		body: { text: "Please share your contact info so we can reach you." },
+		action: { name: "request_contact_info" },
+	},
+});
+
 // Template message
 await client.sendMessage({
 	to: "+16505551234",
@@ -194,6 +207,22 @@ await client.updateTemplate(templateId, {
 
 // Delete a template by name
 await client.deleteTemplate("order_confirmation");
+
+// Create a template with a REQUEST_CONTACT_INFO button
+// When tapped, the user's phone number and vCard are shared in the chat
+// and delivered as a contacts webhook message.
+await client.createTemplate({
+	name: "share_contact_prompt",
+	language: "en_US",
+	category: "UTILITY", // or "MARKETING"
+	components: [
+		{ type: "BODY", text: "Tap below to share your contact info." },
+		{
+			type: "BUTTONS",
+			buttons: [{ type: "REQUEST_CONTACT_INFO" }],
+		},
+	],
+});
 ```
 
 ### 1.6 — Business profile
@@ -368,6 +397,13 @@ webhookClient.initWebhook({
 		// message.from may be omitted — use message.from_user_id (BSUID) as fallback
 		const sender = message.from ?? message.from_user_id;
 		console.log("Sender identifier:", sender);
+
+		// Handle contacts shared via REQUEST_CONTACT_INFO button tap
+		if (message.type === "contacts") {
+			for (const c of message.contacts ?? []) {
+				console.log("Shared contact:", c.name?.formatted_name, c.phones?.[0]?.phone);
+			}
+		}
 	},
 
 	onTextMessageReceived: (message, contact, metadata) => {

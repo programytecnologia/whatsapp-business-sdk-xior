@@ -21,7 +21,8 @@ export type TemplateButtonType =
   | "COPY_CODE"
   | "FLOW"
   | "CATALOG"
-  | "MPM";
+  | "MPM"
+  | "REQUEST_CONTACT_INFO";
 
 export type TemplateComponentButton = {
   type: TemplateButtonType;
