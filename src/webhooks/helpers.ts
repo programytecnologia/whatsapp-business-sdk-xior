@@ -7,6 +7,7 @@ import type {
   WebhookAccountAlert,
   WebhookAccountReviewUpdate,
   WebhookBusinessCapabilityUpdate,
+  WebhookBusinessUsernameUpdate,
   WebhookCallConnect,
   WebhookCallTerminate,
   WebhookEvents,
@@ -42,6 +43,7 @@ export const webhookHandler = (
     onBusinessCapabilityUpdate,
     onAccountReviewUpdate,
     onAccountAlert,
+    onBusinessUsernameUpdate,
   }: Omit<WebhookEvents, "onStartListening">,
 ) => {
   body.entry?.forEach((entry) => {
@@ -85,6 +87,10 @@ export const webhookHandler = (
       }
       if (change.field === "account_alerts") {
         onAccountAlert?.(change.value as WebhookAccountAlert);
+        return;
+      }
+      if (change.field === "business_username_update") {
+        onBusinessUsernameUpdate?.(change.value as WebhookBusinessUsernameUpdate);
         return;
       }
       //Messaging-style webhook fields (messages, statuses, calls, echoes, etc.)

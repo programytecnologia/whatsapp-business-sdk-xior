@@ -46,13 +46,25 @@ export type VerifyPhoneNumberArgs = {
 };
 
 type BlockedUserResult = {
+  /** The input value used in the request (phone number or BSUID). */
   input: string;
-  wa_id: string;
+  /** The user's phone number. Omitted when the user was blocked/unblocked via BSUID. */
+  wa_id?: string;
+  /** The user's BSUID. Present when the user was blocked/unblocked via BSUID. */
+  user_id?: string;
 };
+
+/**
+ * A block/unblock target. Provide `user` (phone number), `user_id` (BSUID or parent BSUID), or both.
+ * When both are provided, `user` (phone number) takes precedence.
+ */
+export type BlockUserTarget =
+  | { user: string; user_id?: string }
+  | { user_id: string; user?: string };
 
 export type BlockUsersPayload = {
   messaging_product: "whatsapp";
-  block_users: { user: string }[];
+  block_users: BlockUserTarget[];
 };
 
 export type BlockUsersResponse = {
@@ -72,7 +84,8 @@ export type UnblockUsersResponse = {
 export type GetBlockedUsersResponse = {
   data: {
     messaging_product: "whatsapp";
-    wa_id: string;
+    wa_id?: string;
+    user_id?: string;
   }[];
   paging: {
     cursors: {
@@ -80,4 +93,38 @@ export type GetBlockedUsersResponse = {
       after: string;
     };
   };
+};
+
+// ─── Business username types ──────────────────────────────────────────────────
+
+/** Status of a business username. */
+export type BusinessUsernameStatus = "approved" | "reserved";
+
+export type AdoptUsernamePayload = {
+  /** The desired username. Must follow WhatsApp username format rules. */
+  username: string;
+};
+
+export type AdoptUsernameResponse = {
+  /** The status of the requested username. */
+  status: BusinessUsernameStatus;
+};
+
+export type GetUsernameResponse = {
+  /** Current username. Omitted if the phone number has no username. */
+  username?: string;
+  /** Username status. */
+  status: BusinessUsernameStatus;
+};
+
+export type GetReservedUsernamesResponse = {
+  data: [
+    {
+      username_suggestions: string[];
+    },
+  ];
+};
+
+export type DeleteUsernameResponse = {
+  success: boolean;
 };

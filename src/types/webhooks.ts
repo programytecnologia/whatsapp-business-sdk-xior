@@ -11,11 +11,25 @@ export type { WebhookCallConnect, WebhookCallTerminate };
  */
 export type WebhookContact = {
   /**
-   * The customer's WhatsApp ID. A business can respond to a message using this ID.
+   * The customer's WhatsApp ID. May be omitted if the user has enabled the
+   * usernames feature and phone number cannot be included.
    */
-  wa_id: string;
+  wa_id?: string;
+  /**
+   * Business-scoped user ID (BSUID). Included starting March 31, 2026.
+   * Format: `<ISO-3166-alpha-2-country-code>.<alphanumeric>`, e.g. `US.13491208655302741918`.
+   */
+  user_id?: string;
+  /**
+   * Parent BSUID, present only when parent BSUIDs are enabled on your business portfolio.
+   */
+  parent_user_id?: string;
   profile: {
     name: string;
+    /**
+     * The WhatsApp user's username, if they have enabled the usernames feature.
+     */
+    username?: string;
   };
 };
 
@@ -217,9 +231,17 @@ export type WebhookMessage = {
   errors?: WebhookError[];
   /**
    * The customer's WhatsApp ID. A business can respond to a customer using this ID.
-   * This ID may not match the customer's phone number, which is returned by the API as input when sending a message to the customer.
+   * May be omitted if the user has enabled the usernames feature and phone number cannot be included.
    */
-  from: string;
+  from?: string;
+  /**
+   * The user's BSUID. Included starting March 31, 2026.
+   */
+  from_user_id?: string;
+  /**
+   * The user's parent BSUID, present only when parent BSUIDs are enabled.
+   */
+  from_parent_user_id?: string;
   /**
    * The ID for the message that was received by the business. You could use messages endpoint to mark it as read.
    */
@@ -354,11 +376,23 @@ export type WebhookMessage = {
        * A customer changed their profile information
        */
       customer_identity_changed: boolean;
+      /**
+       * A WhatsApp user changed their phone number (and thus their BSUID).
+       */
+      user_changed_user_id: boolean;
     };
     /**
      * The WhatsApp ID for the customer prior to the update
      */
     customer: string;
+    /**
+     * The user's new BSUID, assigned when they change their phone number.
+     */
+    user_id?: string;
+    /**
+     * The user's new parent BSUID, if parent BSUIDs are enabled.
+     */
+    parent_user_id?: string;
   };
   /**
    * When messages type is set to text.
@@ -428,9 +462,31 @@ export type WebhookStatus = {
     expiration_timestamp: string;
   };
   /**
-   * The WhatsApp ID for the customer that the business, that is subscribed to the webhooks, sent to the customer
+   * The WhatsApp ID (phone number) of the message recipient. May be omitted if the message
+   * was sent to a BSUID and the phone number cannot be included.
    */
-  recipient_id: string;
+  recipient_id?: string;
+  /**
+   * The BSUID or parent BSUID of the recipient, if the message was sent to a BSUID.
+   */
+  recipient_user_id?: string;
+  /**
+   * The parent BSUID of the recipient, if parent BSUIDs are enabled.
+   */
+  recipient_parent_user_id?: string;
+  /**
+   * Contacts array included for sent, delivered, and read status messages.
+   * Omitted for failed status messages.
+   */
+  contacts?: Array<{
+    profile: {
+      name: string;
+      username?: string;
+    };
+    wa_id?: string;
+    user_id?: string;
+    parent_user_id?: string;
+  }>;
   status: "delivered" | "failed" | "read" | "sent" | "RINGING" | "ACCEPTED" | "REJECTED";
   /**
    * Date for the status message in unix
@@ -467,8 +523,12 @@ export type WebhookAccountUpdate = {
 export type WebhookMessageEcho = {
   /** Business phone number that sent the message. */
   from: string;
-  /** WhatsApp user phone number that received the message. */
-  to: string;
+  /** WhatsApp user phone number that received the message. May be omitted if the user has enabled usernames. */
+  to?: string;
+  /** The user's BSUID. */
+  to_user_id?: string;
+  /** The user's parent BSUID, if parent BSUIDs are enabled. */
+  to_parent_user_id?: string;
   id: string;
   timestamp: string;
   /** Message type (e.g. "text", "image"). */
@@ -480,7 +540,14 @@ export type WebhookMessageEcho = {
 export type WebhookStateSyncContact = {
   full_name?: string;
   first_name?: string;
-  phone_number: string;
+  /** The contact's phone number. May be omitted if the user has enabled usernames. */
+  phone_number?: string;
+  /** The user's BSUID. */
+  user_id?: string;
+  /** The user's parent BSUID, if parent BSUIDs are enabled. */
+  parent_user_id?: string;
+  /** The user's username, if the user has enabled the usernames feature. */
+  username?: string;
 };
 
 /** A single contact sync event from an smb_app_state_sync webhook. */
@@ -508,8 +575,19 @@ export type WebhookHistoryMeta = {
 export type WebhookHistory = {
   metadata?: WebhookHistoryMeta;
   threads?: Array<{
-    /** WhatsApp user phone number for this thread. */
-    id: string;
+    /** WhatsApp user phone number for this thread. May be omitted if the user has enabled usernames. */
+    id?: string;
+    /** Context for the thread, including BSUID and username information. */
+    context?: {
+      /** The user's phone number. Omitted if the user has enabled usernames. */
+      wa_id?: string;
+      /** The user's BSUID. */
+      user_id?: string;
+      /** The user's parent BSUID, if parent BSUIDs are enabled. */
+      parent_user_id?: string;
+      /** The user's username, if the user has enabled the usernames feature. */
+      username?: string;
+    };
     messages?: WebhookMessage[];
   }>;
   errors?: WebhookError[];
@@ -646,6 +724,25 @@ export type WebhookAccountAlert = {
   details: string;
 };
 
+/** Status of a business username request. */
+export type UsernameStatus = "approved" | "reserved" | "deleted";
+
+/**
+ * Payload for the `business_username_update` webhook field.
+ * Triggered when a business username status changes.
+ */
+export type WebhookBusinessUsernameUpdate = {
+  /** Business phone number display number. */
+  display_phone_number: string;
+  /**
+   * The username whose status changed.
+   * Omitted when `status` is `"deleted"`.
+   */
+  username?: string;
+  /** New status of the username. */
+  status: UsernameStatus;
+};
+
 // ─── WebhookChange discriminated union ───────────────────────────────────────
 
 export type WebhookChange =
@@ -669,7 +766,8 @@ export type WebhookChange =
   | { field: "security"; value: WebhookSecurity }
   | { field: "business_capability_update"; value: WebhookBusinessCapabilityUpdate }
   | { field: "account_review_update"; value: WebhookAccountReviewUpdate }
-  | { field: "account_alerts"; value: WebhookAccountAlert };
+  | { field: "account_alerts"; value: WebhookAccountAlert }
+  | { field: "business_username_update"; value: WebhookBusinessUsernameUpdate };
 
 /**
  * Webhooks are triggered when a customer performs an action or the status for a message a business sends a customer changes.
@@ -794,4 +892,9 @@ export type WebhookEvents = {
    * Subscribe to the `account_alerts` webhook field.
    */
   onAccountAlert?: (alert: WebhookAccountAlert) => void;
+  /**
+   * Fired when a business username status changes (approved, reserved, or deleted).
+   * Subscribe to the `business_username_update` webhook field.
+   */
+  onBusinessUsernameUpdate?: (update: WebhookBusinessUsernameUpdate) => void;
 };

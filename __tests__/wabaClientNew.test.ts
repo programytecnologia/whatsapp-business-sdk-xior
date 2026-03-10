@@ -425,6 +425,22 @@ describe("WABAClient — new methods", () => {
         const config = callConfig(client.restClient.get as jest.Mock);
         expect(config.params?.user_wa_id).toBe("+14155551234");
       });
+
+      it("accepts a BSUID via { recipient } and passes it as ?recipient=...", async () => {
+        await client.getCallPermissions({ recipient: "US.13491208655302741918" });
+
+        const config = callConfig(client.restClient.get as jest.Mock);
+        expect(config.params?.recipient).toBe("US.13491208655302741918");
+        expect(config.params).not.toHaveProperty("user_wa_id");
+      });
+
+      it("accepts { userWaId } object and maps it to user_wa_id param", async () => {
+        await client.getCallPermissions({ userWaId: "+16505551234" });
+
+        const config = callConfig(client.restClient.get as jest.Mock);
+        expect(config.params?.user_wa_id).toBe("+16505551234");
+        expect(config.params).not.toHaveProperty("recipient");
+      });
     });
   });
 
@@ -549,6 +565,168 @@ describe("WABAClient — new methods", () => {
         const body = callBody(client.restClient.post as jest.Mock);
         expect(body.sync_type).toBe(syncType);
       }
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Block Users API (BSUID support)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  describe("Block Users API", () => {
+    describe("blockUsers", () => {
+      it("posts to /{phoneId}/block_users with phone number target", async () => {
+        await client.blockUsers([{ user: "+16505551234" }]);
+
+        expect(client.restClient.post).toHaveBeenCalledWith(
+          `${PHONE_ID}/block_users`,
+          expect.objectContaining({
+            messaging_product: "whatsapp",
+            block_users: [{ user: "+16505551234" }],
+          }),
+        );
+      });
+
+      it("posts with BSUID target via user_id", async () => {
+        await client.blockUsers([{ user_id: "US.13491208655302741918" }]);
+
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.block_users).toEqual([{ user_id: "US.13491208655302741918" }]);
+      });
+
+      it("allows both user and user_id together", async () => {
+        await client.blockUsers([{ user: "+16505551234", user_id: "US.13491208655302741918" }]);
+
+        const body = callBody<{ block_users: Array<{ user?: string; user_id?: string }> }>(
+          client.restClient.post as jest.Mock,
+        );
+        expect(body.block_users[0]).toMatchObject({
+          user: "+16505551234",
+          user_id: "US.13491208655302741918",
+        });
+      });
+
+      it("always includes messaging_product=whatsapp", async () => {
+        await client.blockUsers([{ user: "+16505551234" }]);
+
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.messaging_product).toBe("whatsapp");
+      });
+
+      it("posts multiple targets at once", async () => {
+        await client.blockUsers([{ user: "+16505551234" }, { user_id: "US.13491208655302741918" }]);
+
+        const body = callBody(client.restClient.post as jest.Mock);
+        expect(body.block_users).toHaveLength(2);
+      });
+    });
+
+    describe("unblockUsers", () => {
+      it("calls DELETE /{phoneId}/block_users with phone number target", async () => {
+        await client.unblockUsers([{ user: "+16505551234" }]);
+
+        expect(client.restClient.delete).toHaveBeenCalledWith(
+          `${PHONE_ID}/block_users`,
+          undefined,
+          expect.objectContaining({
+            data: expect.objectContaining({
+              messaging_product: "whatsapp",
+              block_users: [{ user: "+16505551234" }],
+            }),
+          }),
+        );
+      });
+
+      it("accepts a BSUID target via user_id", async () => {
+        await client.unblockUsers([{ user_id: "US.99887766554433221100" }]);
+
+        const config = callConfig(client.restClient.delete as jest.Mock);
+        expect(
+          (config as { data?: { block_users: Array<{ user_id?: string }> } }).data?.block_users[0]
+            .user_id,
+        ).toBe("US.99887766554433221100");
+      });
+    });
+
+    describe("getBlockedUsers", () => {
+      it("calls GET /{phoneId}/block_users", async () => {
+        await client.getBlockedUsers();
+
+        expect(client.restClient.get).toHaveBeenCalledWith(`${PHONE_ID}/block_users`);
+      });
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Business Username API
+  // ──────────────────────────────────────────────────────────────────────────
+
+  describe("Business Username API", () => {
+    const OTHER_PHONE = "other-phone-999";
+
+    describe("getUsername", () => {
+      it("calls GET /{phoneId}/username using the default phone ID", async () => {
+        await client.getUsername();
+
+        expect(client.restClient.get).toHaveBeenCalledWith(`${PHONE_ID}/username`);
+      });
+
+      it("calls GET /{phoneNumberId}/username when an explicit ID is supplied", async () => {
+        await client.getUsername(OTHER_PHONE);
+
+        expect(client.restClient.get).toHaveBeenCalledWith(`${OTHER_PHONE}/username`);
+      });
+    });
+
+    describe("adoptUsername", () => {
+      it("posts { username } to /{phoneId}/username using the default phone ID", async () => {
+        await client.adoptUsername("jaspers_market");
+
+        expect(client.restClient.post).toHaveBeenCalledWith(`${PHONE_ID}/username`, {
+          username: "jaspers_market",
+        });
+      });
+
+      it("posts to /{phoneNumberId}/username when an explicit ID is supplied", async () => {
+        await client.adoptUsername("jaspers_market", OTHER_PHONE);
+
+        const endpoint = callEndpoint(client.restClient.post as jest.Mock);
+        expect(endpoint).toBe(`${OTHER_PHONE}/username`);
+      });
+
+      it("passes the exact username string in the request body", async () => {
+        await client.adoptUsername("my.brand_id");
+
+        const body = callBody<{ username: string }>(client.restClient.post as jest.Mock);
+        expect(body.username).toBe("my.brand_id");
+      });
+    });
+
+    describe("getReservedUsernames", () => {
+      it("calls GET /{phoneId}/username_suggestions using the default phone ID", async () => {
+        await client.getReservedUsernames();
+
+        expect(client.restClient.get).toHaveBeenCalledWith(`${PHONE_ID}/username_suggestions`);
+      });
+
+      it("calls GET /{phoneNumberId}/username_suggestions when an explicit ID is supplied", async () => {
+        await client.getReservedUsernames(OTHER_PHONE);
+
+        expect(client.restClient.get).toHaveBeenCalledWith(`${OTHER_PHONE}/username_suggestions`);
+      });
+    });
+
+    describe("deleteUsername", () => {
+      it("calls DELETE /{phoneId}/username using the default phone ID", async () => {
+        await client.deleteUsername();
+
+        expect(client.restClient.delete).toHaveBeenCalledWith(`${PHONE_ID}/username`);
+      });
+
+      it("calls DELETE /{phoneNumberId}/username when an explicit ID is supplied", async () => {
+        await client.deleteUsername(OTHER_PHONE);
+
+        expect(client.restClient.delete).toHaveBeenCalledWith(`${OTHER_PHONE}/username`);
+      });
     });
   });
 });

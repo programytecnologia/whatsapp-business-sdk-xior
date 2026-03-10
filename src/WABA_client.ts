@@ -1,8 +1,11 @@
 import fs from "node:fs";
 import FormData from "form-data";
 import type {
+  AdoptUsernamePayload,
+  AdoptUsernameResponse,
   BlockUsersPayload,
   BlockUsersResponse,
+  BlockUserTarget,
   BusinessPhoneNumber,
   BusinessProfile,
   BusinessProfileFields,
@@ -15,6 +18,7 @@ import type {
   CreateTemplateResponse,
   DefaultResponse,
   DeleteTemplateResponse,
+  DeleteUsernameResponse,
   Flow,
   GetAnalyticsParams,
   GetAnalyticsResponse,
@@ -26,8 +30,10 @@ import type {
   GetConversationAnalyticsResponse,
   GetFlowAssetsResponse,
   GetMediaResponse,
+  GetReservedUsernamesResponse,
   GetTemplatesParams,
   GetTemplatesResponse,
+  GetUsernameResponse,
   HealthStatusResponse,
   InitiateCallPayload,
   InitiateCallResponse,
@@ -277,27 +283,29 @@ export class WABAClient {
   /**
    * Blocks one or more users from sending messages to your business phone number.
    *
-   * @param users array of phone numbers to block (e.g. ["+16505551234"])
+   * Each entry is either a phone number (`{ user: "+16505551234" }`) or
+   * a BSUID (`{ user_id: "US.13491208655302741918" }`).
    */
-  async blockUsers(users: string[]) {
+  async blockUsers(users: BlockUserTarget[]) {
     return this.restClient.post<BlockUsersResponse, BlockUsersPayload>(
       `${this.phoneId}/block_users`,
       {
         messaging_product: "whatsapp",
-        block_users: users.map((user) => ({ user })),
+        block_users: users,
       },
     );
   }
   /**
    * Unblocks one or more previously blocked users.
    *
-   * @param users array of phone numbers to unblock (e.g. ["+16505551234"])
+   * Each entry is either a phone number (`{ user: "+16505551234" }`) or
+   * a BSUID (`{ user_id: "US.13491208655302741918" }`).
    */
-  async unblockUsers(users: string[]) {
+  async unblockUsers(users: BlockUserTarget[]) {
     return this.restClient.delete<UnblockUsersResponse>(`${this.phoneId}/block_users`, undefined, {
       data: {
         messaging_product: "whatsapp",
-        block_users: users.map((user) => ({ user })),
+        block_users: users,
       },
     });
   }
@@ -461,13 +469,21 @@ export class WABAClient {
    * Returns the current call permission state for a specific WhatsApp user,
    * including whether your business can initiate a call or send a permission request.
    *
-   * @param userWaId - The WhatsApp user's phone number.
+   * @param target - The user's phone number (string, backward-compatible), or an object
+   *   with `userWaId` (phone number) or `recipient` (BSUID / parent BSUID).
    */
-  async getCallPermissions(userWaId: string) {
+  async getCallPermissions(target: string | { userWaId?: string; recipient?: string }) {
+    const params =
+      typeof target === "string"
+        ? { user_wa_id: target }
+        : {
+            ...(target.userWaId && { user_wa_id: target.userWaId }),
+            ...(target.recipient && { recipient: target.recipient }),
+          };
     return this.restClient.get<GetCallPermissionsResponse>(
       `${this.phoneId}/call_permissions`,
       undefined,
-      { params: { user_wa_id: userWaId } },
+      { params },
     );
   }
   /*
@@ -632,5 +648,57 @@ export class WABAClient {
     return this.restClient.get<GetConversationAnalyticsResponse>(`${this.accountId}`, undefined, {
       params: { fields: "conversation_analytics", ...params },
     });
+  }
+
+  /*
+   *
+   *	BUSINESS USERNAME ENDPOINTS (https://developers.facebook.com/documentation/business-messaging/whatsapp/business-scoped-user-ids/)
+   *
+   */
+
+  /**
+   * Get the current business username for a phone number.
+   *
+   * GET /{phoneId}/username
+   */
+  getUsername(phoneNumberId?: string) {
+    return this.restClient.get<GetUsernameResponse>(`${phoneNumberId ?? this.phoneId}/username`);
+  }
+
+  /**
+   * Adopt or change the business username for a phone number.
+   * The response status will be `"approved"` or `"reserved"` depending on
+   * whether usernames are available in the business's country yet.
+   *
+   * POST /{phoneId}/username
+   */
+  adoptUsername(username: string, phoneNumberId?: string) {
+    return this.restClient.post<AdoptUsernameResponse, AdoptUsernamePayload>(
+      `${phoneNumberId ?? this.phoneId}/username`,
+      { username },
+    );
+  }
+
+  /**
+   * Get the list of usernames reserved for this phone number's business portfolio.
+   * Call `adoptUsername` with one of the returned suggestions to claim it.
+   *
+   * GET /{phoneId}/username_suggestions
+   */
+  getReservedUsernames(phoneNumberId?: string) {
+    return this.restClient.get<GetReservedUsernamesResponse>(
+      `${phoneNumberId ?? this.phoneId}/username_suggestions`,
+    );
+  }
+
+  /**
+   * Delete the business username associated with a phone number.
+   *
+   * DELETE /{phoneId}/username
+   */
+  deleteUsername(phoneNumberId?: string) {
+    return this.restClient.delete<DeleteUsernameResponse>(
+      `${phoneNumberId ?? this.phoneId}/username`,
+    );
   }
 }

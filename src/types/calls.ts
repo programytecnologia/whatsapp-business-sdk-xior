@@ -11,8 +11,13 @@ export type CallSdpSession = {
 
 export type InitiateCallPayload = {
   messaging_product: "whatsapp";
-  /** The callee's phone number. */
-  to: string;
+  /** The callee's phone number. Either `to` or `recipient` (BSUID) must be provided. */
+  to?: string;
+  /**
+   * The callee's BSUID or parent BSUID. Use instead of `to` when the phone number is
+   * unavailable. If both are provided, `to` (phone number) takes precedence.
+   */
+  recipient?: string;
   action: "connect";
   session: CallSdpSession;
   /** Optional tracking string. Returned in the call terminate webhook. Max 512 chars. */
@@ -149,8 +154,18 @@ export type GetCallPermissionsResponse = {
 
 export type WebhookCallConnect = {
   id: string;
-  to: string;
-  from: string;
+  /** The callee's phone number. May be omitted if the user has enabled usernames. */
+  to?: string;
+  /** The callee's BSUID (business-initiated calls). */
+  to_user_id?: string;
+  /** The callee's parent BSUID, if parent BSUIDs are enabled (business-initiated calls). */
+  to_parent_user_id?: string;
+  /** The caller's phone number. May be omitted if the user has enabled usernames. */
+  from?: string;
+  /** The caller's BSUID (user-initiated calls). */
+  from_user_id?: string;
+  /** The caller's parent BSUID, if parent BSUIDs are enabled (user-initiated calls). */
+  from_parent_user_id?: string;
   event: "connect";
   timestamp: string;
   direction: CallDirection;
@@ -160,8 +175,18 @@ export type WebhookCallConnect = {
 
 export type WebhookCallTerminate = {
   id: string;
-  to: string;
-  from: string;
+  /** The callee's phone number. May be omitted if the user has enabled usernames. */
+  to?: string;
+  /** The callee's BSUID (business-initiated calls). */
+  to_user_id?: string;
+  /** The callee's parent BSUID, if parent BSUIDs are enabled (business-initiated calls). */
+  to_parent_user_id?: string;
+  /** The caller's phone number. May be omitted if the user has enabled usernames. */
+  from?: string;
+  /** The caller's BSUID (user-initiated calls). */
+  from_user_id?: string;
+  /** The caller's parent BSUID, if parent BSUIDs are enabled (user-initiated calls). */
+  from_parent_user_id?: string;
   event: "terminate";
   timestamp: string;
   direction: CallDirection;

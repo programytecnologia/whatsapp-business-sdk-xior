@@ -5,8 +5,12 @@ export type SendMessageResponse = {
   messaging_product: "whatsapp";
   contacts: [
     {
+      /** The input value (phone number or BSUID) used when sending the message. */
       input: string;
-      wa_id: string;
+      /** The user's phone number. Omitted if the message was sent to a BSUID. */
+      wa_id?: string;
+      /** The user's BSUID. Present when the message was sent to (or resolved from) a BSUID. */
+      user_id?: string;
     },
   ];
   messages: [
@@ -77,8 +81,16 @@ export type Message = {
   /**
    * WhatsApp ID or phone number for the person you want to send a message to.
    * See https://developers.facebook.com/docs/whatsapp/cloud-api/reference/phone-numbers#formatting for more information.
+   * Either `to` or `recipient` (BSUID) must be provided.
    */
-  to: string;
+  to?: string;
+  /**
+   * The recipient's Business-Scoped User ID (BSUID). Use instead of `to` when you don't
+   * know the user's phone number, or alongside `to` (phone number takes precedence).
+   * Format: `<ISO-3166-alpha-2-country-code>.<alphanumeric>`, e.g. `US.13491208655302741918`.
+   * API support for sending to BSUIDs is available from May 2026.
+   */
+  recipient?: string;
   /**
    * Required when type=audio.
    */
