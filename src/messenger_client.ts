@@ -20,6 +20,7 @@ import type {
   UserProfile,
   UserProfileField,
 } from "./types/messenger";
+import type { DefaultMessengerErrorAPI } from "./types/messenger/error";
 import { MessengerErrorHandler } from "./utils/messengerErrorHandler";
 import { createRestClient } from "./utils/restClient";
 
@@ -43,7 +44,8 @@ export class MessengerClient {
     this.restClient = createRestClient({
       apiToken,
       baseURL: "https://graph.facebook.com/v25.0",
-      errorHandler: (error) => MessengerErrorHandler(error?.response?.data || error),
+      errorHandler: (error) =>
+        MessengerErrorHandler((error?.response?.data || error) as DefaultMessengerErrorAPI),
     });
   }
 

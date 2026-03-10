@@ -1,12 +1,26 @@
 import { createRestClient } from "../../src/utils/restClient";
 
+const mockFetch = jest.fn();
+const originalFetch = globalThis.fetch;
+
 describe("create rest client", () => {
   beforeEach(() => {
     jest.restoreAllMocks();
+    globalThis.fetch = mockFetch;
+    mockFetch.mockReset();
   });
 
-  it("should return CRUD methods and be callable", () => {
-    const restClient = createRestClient({});
+  afterAll(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("should return CRUD methods and be callable", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve("{}"),
+    });
+    const restClient = createRestClient({ baseURL: "https://example.com" });
     jest.spyOn(restClient, "get");
     jest.spyOn(restClient, "post");
     jest.spyOn(restClient, "put");
@@ -48,7 +62,16 @@ describe("create rest client", () => {
 
   it("should use error handler", async () => {
     const errorReturn = { request: {}, response: {} };
-    const restClient = createRestClient({ errorHandler: () => Promise.reject(errorReturn) });
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ error: { message: "Bad Request" } }),
+      text: () => Promise.resolve('{"error":{"message":"Bad Request"}}'),
+    });
+    const restClient = createRestClient({
+      baseURL: "https://example.com",
+      errorHandler: () => Promise.reject(errorReturn),
+    });
     try {
       await restClient.get("");
     } catch (err) {

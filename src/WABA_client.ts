@@ -17,6 +17,7 @@ import type {
   CreateTemplatePayload,
   CreateTemplateResponse,
   DefaultResponse,
+  DefaultWABAErrorAPI,
   DeleteTemplateResponse,
   DeleteUsernameResponse,
   Flow,
@@ -86,7 +87,8 @@ export class WABAClient {
     this.restClient = createRestClient({
       apiToken,
       baseURL: "https://graph.facebook.com/v25.0",
-      errorHandler: (error) => WABAErrorHandler(error?.response?.data || error),
+      errorHandler: (error) =>
+        WABAErrorHandler((error?.response?.data || error) as DefaultWABAErrorAPI),
     });
   }
 
