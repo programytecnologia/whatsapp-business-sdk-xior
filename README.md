@@ -1,241 +1,161 @@
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/MarcosNicolau/whatsapp-business-sdk/npm_publish.yml?branch=main)
-![Known Vulnerabilities](https://snyk.io/test/github/MarcosNicolau/whatsapp-business-sdk/badge.svg)
-![Codecov](https://img.shields.io/codecov/c/github/MarcosNicolau/whatsapp-business-sdk?token=G20JHIZMRW)
-![GitHub last commit](https://img.shields.io/github/last-commit/MarcosNicolau/whatsapp-business-sdk)
-![GitHub top language](https://img.shields.io/github/languages/top/MarcosNicolau/whatsapp-business-sdk)
-![npm bundle size](https://img.shields.io/bundlephobia/minzip/whatsapp-business)
-![npm](https://img.shields.io/npm/v/whatsapp-business)
-![GitHub](https://img.shields.io/github/license/MarcosNicolau/whatsapp-business-sdk)
+# WhatsApp Business SDK
 
----
-> Fork of the great work made by @MarcosNicolau, but rewritten to use:
+Node.js SDK for the **WhatsApp Business Cloud API**, **Facebook Messenger**, and **Instagram Direct Messaging** — fully typed, tested, and documented.
 
-- **pnpm** instead of **yarn**
-- **xior** instead of **axios**
-- **biome** instead of **eslint + prettier**
-
-All tests pass
-
----
-
-# WhatsApp Business API SDK
-
-Node.js connector for WhatsApp Business Cloud API, with TypeScript support.
-
-This project offers a solution to easily interact with WhatsApp Business Cloud API with Heavy integration testing with real API calls to support implementation stability. Built with Xior for edge, bun, and deno compatibility!
-
-The connector is fully typed, tested and documented!
+Built with [`xior`](https://github.com/suhaotian/xior) for edge, Bun, and Deno compatibility. TypeScript types are bundled — no `@types/…` package needed.
 
 ## Installation
 
-`npm install whatsapp-business`
+```bash
+npm install @programytecnologia/whatsapp-business-sdk
+pnpm add @programytecnologia/whatsapp-business-sdk
+yarn add @programytecnologia/whatsapp-business-sdk
+```
 
-`pnpm add whatsapp-business`
+## Channels
+
+| Channel                       | Client            | Webhook Client           |
+| ----------------------------- | ----------------- | ------------------------ |
+| WhatsApp Business (Cloud API) | `WABAClient`      | `WebhookClient`          |
+| Facebook Messenger            | `MessengerClient` | `MessengerWebhookClient` |
+| Instagram Direct              | `InstagramClient` | `InstagramWebhookClient` |
+
+## Quick start
+
+### WhatsApp
+
+```ts
+import { WABAClient, WABAErrorAPI } from "@programytecnologia/whatsapp-business-sdk";
+
+const client = new WABAClient({
+	apiToken: process.env.WA_TOKEN!,
+	phoneId: process.env.WA_PHONE_ID!,
+	accountId: process.env.WA_ACCOUNT_ID!,
+});
+
+// Send a text message
+await client.sendMessage({
+	to: "+16505551234",
+	type: "text",
+	text: { body: "Hello from WhatsApp!" },
+});
+
+// Send an image
+await client.sendMessage({
+	to: "+16505551234",
+	type: "image",
+	image: { link: "https://example.com/photo.jpg", caption: "Check this out" },
+});
+```
+
+### WhatsApp webhooks
+
+```ts
+import { WebhookClient } from "@programytecnologia/whatsapp-business-sdk";
+
+const webhookClient = new WebhookClient({
+	token: process.env.WA_WEBHOOK_TOKEN!,
+	appSecret: process.env.META_APP_SECRET!, // enables X-Hub-Signature-256 verification
+	port: 3000,
+	path: "/webhook/whatsapp",
+});
+
+webhookClient.initWebhook({
+	onTextMessageReceived: async (message, contact) => {
+		const sender = contact.wa_id ?? contact.user_id; // wa_id may be absent if user has a username
+		await client.markMessageAsRead(message.id);
+		await client.sendMessage({
+			to: sender!,
+			type: "text",
+			text: { body: "Got your message!" },
+		});
+	},
+	onStatusReceived: (status) => {
+		console.log(status.status, "for", status.recipient_id ?? status.recipient_user_id);
+	},
+});
+```
+
+### Messenger
+
+```ts
+import { MessengerClient } from "@programytecnologia/whatsapp-business-sdk";
+
+const client = new MessengerClient({
+	apiToken: process.env.PAGE_ACCESS_TOKEN!,
+	pageId: process.env.PAGE_ID!,
+});
+
+await client.sendText("USER_PSID", "Hello from your Page!");
+```
+
+### Instagram Direct
+
+```ts
+import { InstagramClient } from "@programytecnologia/whatsapp-business-sdk";
+
+const client = new InstagramClient({
+	apiToken: process.env.PAGE_ACCESS_TOKEN!,
+	pageId: process.env.PAGE_ID!,
+});
+
+await client.sendText("USER_IGSID", "Hello from Instagram!");
+```
+
+## Features
+
+**WhatsApp Business**
+
+- Send text, image, audio, video, document, location, contacts, reactions, stickers, and templates
+- Interactive messages: reply buttons, list messages, CTA URL, flows, catalog, `location_request_message`, `call_permission_request`, `request_contact_info`
+- Media upload, download, and management
+- Template management (create, update, delete, list)
+- Business profile management
+- Phone number management and verification
+- Blocking / unblocking users (by phone number or BSUID)
+- Marketing Messages API
+- Calling API (outbound calls, SDP exchange, call settings)
+- Business username CRUD (`getUsername`, `adoptUsername`, `getReservedUsernames`, `deleteUsername`)
+- Full webhook support: messages, statuses, calls, echoes, history sync, state sync, template updates, account updates, `business_username_update`
+- **BSUID support** — Business-Scoped User IDs rolling out from March 31, 2026
+
+**Facebook Messenger**
+
+- Send text, images, audio, video, files, templates, quick replies
+- Sender actions (typing indicator, read receipts)
+- Attachment Upload API (reusable media)
+- Persona API
+- Messenger Profile (Get Started, greeting, persistent menu)
+- One-Time Notifications (OTN)
+- Handover Protocol
+
+**Instagram Direct**
+
+- Send text, images, audio, video, files, templates, quick replies
+- Sender actions
+- Handover Protocol
+
+## BSUID support
+
+Starting **March 31, 2026**, WhatsApp delivers Business-Scoped User IDs alongside phone numbers in webhooks. Starting **May 2026**, BSUIDs can be used to send messages and calls directly.
+
+All SDK types are backward compatible — `wa_id`, `from`, and `recipient_id` become optional; their BSUID counterparts (`user_id`, `from_user_id`, `recipient_user_id`) appear alongside them.
+
+```ts
+webhookClient.initWebhook({
+	onMessageReceived: (message, contact) => {
+		// phone number OR bsuid — whichever is present
+		const sender = contact.wa_id ?? contact.user_id;
+	},
+});
+```
+
+See [docs/GUIDE.md](docs/GUIDE.md#113--business-scoped-user-ids-bsuids) for the full migration guide.
 
 ## Documentation
 
-Most methods accept JS objects. These can be populated using parameters specified by [WhatsApp's API documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/overview) or following the typescript schema.
+Full usage guide with examples for all three channels: [docs/GUIDE.md](docs/GUIDE.md)
 
-# Usage
+## License
 
-### Basic usage
-
-```typescript
-import { WABAClient, WABAErrorAPI } from "whatsapp-business";
-
-//You cant get it from the meta for developers app administration
-const client = new WABAClient({
- accountId: "<YOUR_ACCOUNT_ID>",
- apiToken: "<YOUR_API_TOKEN>",
- phoneId: "<YOUR_BUSINESS_PHONE_ID>",
-});
-
-const foo = async () => {
- try {
-  const res = await client.getBusinessPhoneNumbers();
-  console.log(res);
- } catch (err) {
-  const error: WABAErrorAPI = err;
-  console.error(error.message);
- }
-};
-
-foo();
-```
-
-### Sending messages
-
-You can send a text message
-
-```typescript
-const sendTextMessage = async (body: string, to: string) => {
- try {
-  const res = await client.sendMessage({ to, type: "text", text: { body } });
-  console.log(res);
- } catch (err) {
-  const error: WABAErrorAPI = err;
-  console.error(error.message);
- }
-};
-```
-
-or an image
-
-```typescript
-const sendPictureMessage = async ({ link, caption }: MediaObject, to: string) => {
- try {
-  const res = await client.sendMessage({ to, type: "image", image: { link, caption } });
-  console.log(res);
- } catch (err) {
-  const error: WABAErrorAPI = err;
-  console.error(error.message);
- }
-};
-
-sendPictureMessage(
- { link: "<url_link_to_your_image>", caption: "<image_description>" },
- "<PHONE_NUMBER>"
-);
-```
-
-### Webhooks
-
-The webhook client will handle the subscription and setup for the webhooks. You must have an HTTPS connection and add the server URL in your application management.
-
-For more info, checks the docs [here](https://developers.facebook.com/docs/whatsapp/business-management-api/guides/set-up-webhooks).
-
-```typescript
-import { WebhookClient, WABAClient } from "./index";
-
-//The token and path must match the values you set on the application management
-const webhookClient = new WebhookClient({
- token: "<YOUR_VALIDATION_TOKEN>",
- path: "/whatsapp/webhook",
- port: 8080,
-});
-
-const wabaClient = new WABAClient({
- accountId: "<ACCOUNT_ID>",
- phoneId: "<PHONE_ID>",
- apiToken: "<API_TOKEN>",
-});
-
-//Starts a server and triggers the received functions based on the webhook event type
-webhookClient.initWebhook({
- onStartListening: () => {
-  console.log("Server started listening");
- },
- onTextMessageReceived: async (payload, contact) => {
-  try {
-   const messageId = payload.id.toString();
-   const contactNumber = contact.wa_id;
-   //Mark message as read
-   await wabaClient.markMessageAsRead(messageId);
-   //React to message
-   await wabaClient.sendMessage({
-    to: contactNumber,
-    type: "reaction",
-    reaction: { message_id: messageId, emoji: "😄" },
-   });
-   //Respond to message
-   await wabaClient.sendMessage({
-    type: "text",
-    to: contactNumber,
-    text: { body: "Ok!" },
-    //This is optional, it enables reply-to feature
-    context: {
-     message_id: messageId,
-    },
-   });
-  } catch (err) {
-   console.log(err);
-  }
- },
-});
-```
-
-You can also provide your own express app:
-
-```typescript
-import { WebhookClient } from "./index";
-import express from "express";
-
-const myApp = express();
-
-const webhookClient = new WebhookClient({
- token: "<YOUR_VALIDATION_TOKEN>",
- path: "/whatsapp/webhook",
- expressApp: {
-  //Set to false if you want to initialize the server yourself
-  //Otherwise, it will start listening when firing initWebhook()
-  shouldStartListening: false,
-  app: myApp,
- },
-});
-
-myApp.listen(8080, () => {
- console.log("My server nows listens to whatsapp webhooks");
-});
-```
-
-If you don't provide a express app the client will create a default app on its own, which you can later access:
-
-```typescript
-import { WebhookClient } from "./index";
-
-const webhookClient = new WebhookClient({
- token: "<YOUR_VALIDATION_TOKEN>",
- path: "/whatsapp/webhook",
- port: 8080,
-});
-
-const app = webhookClient.expressApp.app;
-//Your configuration...
-app.set("trust proxy", true);
-
-webhookClient.initWebhook({
- onStartListening: () => {
-  console.log("Server started listening");
- },
-});
-```
-
-## Support
-
-| Cloud API                                     |
-| --------------------------------------------- |
-| <ul><li>- [x] Business profiles endpoints     |
-| <ul><li>- [x] Media endpoints                 |
-| <ul><li>- [x] Message endpoints               |
-| <ul><li>- [x] Phone Numbers endpoints         |
-| <ul><li>- [x] Registration endpoints          |
-| <ul><li>- [x] Two-Step-Verification endpoints |
-
-| Webhooks                          |
-| --------------------------------- |
-| <ul><li>- [x] Cloud API           |
-| <ul><li>- [ ] Business Management |
-
-| Business Management API |
-| ----------------------- |
-| Currently working on    |
-
-| Analytics API                  |
-| ------------------------------ |
-| Planning to add future support |
-
-# Project
-
-## Structure
-
-This project uses typescript. Resources are stored in 2 key structures:
-
-- <b>src</b>: the whole connector written in typescript
-- <b>dist</b> the packed bundle of the project for use in nodejs environments (generated when running pnpm run build).
-- <b>\_\_tests\_\_</b> all the tests for the connector
-
-## Contribution and thanks
-
-Contributions are encouraged, I will review any incoming pull requests.
-
-If you found this project interesting or useful, you would help so much by giving this project a star. Thank you!
+MIT

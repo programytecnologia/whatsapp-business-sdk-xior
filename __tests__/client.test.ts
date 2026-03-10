@@ -49,9 +49,9 @@ describe("WABA Cloud API endpoints", () => {
       const res = await client.updateBusinessProfile({
         address: "No physical address",
         description: "A profile to test",
-        email: "marcosnicolau2003@gmail.com",
+        email: "github@programy.com.br",
         vertical: "ENTERTAIN",
-        websites: ["https://github.com/MarcosNicolau/whatsapp-business-sdk"],
+        websites: ["https://github.com/programytecnologia/whatsapp-business-sdk-xior"],
       });
       expectDefaultResponse(res);
     });
