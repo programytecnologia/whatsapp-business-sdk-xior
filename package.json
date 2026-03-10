@@ -17,8 +17,7 @@
     "dist"
   ],
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "tag": "latest"
+    "registry": "https://npm.pkg.github.com/"
   },
   "scripts": {
     "build": "tsc",

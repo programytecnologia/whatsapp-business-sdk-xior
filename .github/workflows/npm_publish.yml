@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
+      packages: write
       contents: write
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org/
+          registry-url: https://npm.pkg.github.com/
           cache: pnpm
 
       - run: pnpm install
@@ -45,4 +45,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish
-        run: pnpm publish --access public --provenance
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
