@@ -3,6 +3,8 @@
 This guide walks through setting up and using each of the three messaging channels supported by this SDK:
 
 - [WhatsApp Business (Cloud API)](#1-whatsapp-business-cloud-api)
+    - [Business usernames](#112--business-usernames)
+    - [Business-scoped user IDs (BSUIDs)](#113--business-scoped-user-ids-bsuids)
 - [Facebook Messenger](#2-facebook-messenger)
 - [Instagram Direct Messaging](#3-instagram-direct-messaging)
 
@@ -51,11 +53,26 @@ const client = new WABAClient({
 ### 1.2 — Sending messages
 
 ```ts
-// Plain text
+// Plain text (by phone number)
 await client.sendMessage({
 	to: "+16505551234",
 	type: "text",
 	text: { body: "Hello from WhatsApp!" },
+});
+
+// Plain text (by BSUID — available from May 2026)
+await client.sendMessage({
+	recipient: "US.13491208655302741918",
+	type: "text",
+	text: { body: "Hello via BSUID!" },
+});
+
+// Both identifiers — phone number takes precedence, BSUID is returned in the response
+await client.sendMessage({
+	to: "+16505551234",
+	recipient: "US.13491208655302741918",
+	type: "text",
+	text: { body: "Hello!" },
 });
 
 // Image by URL
@@ -224,15 +241,31 @@ await client.deregisterPhone("+16505559999");
 
 ### 1.8 — Blocking users
 
+Each entry is a `BlockUserTarget` — an object with `user` (phone number), `user_id` (BSUID), or both. When both are provided, `user` takes precedence.
+
 ```ts
-await client.blockUsers(["+16505551234", "+16505555678"]);
-await client.unblockUsers(["+16505551234"]);
+// Block by phone number
+await client.blockUsers([{ user: "+16505551234" }, { user: "+16505555678" }]);
+
+// Block by BSUID
+await client.blockUsers([{ user_id: "US.13491208655302741918" }]);
+
+// Both identifiers at once — phone number takes precedence
+await client.blockUsers([{ user: "+16505551234", user_id: "US.13491208655302741918" }]);
+
+// Unblock
+await client.unblockUsers([{ user: "+16505551234" }]);
+await client.unblockUsers([{ user_id: "US.13491208655302741918" }]);
+
+// List blocked users
 const { data } = await client.getBlockedUsers();
+// Each entry has optional wa_id (phone) and user_id (BSUID)
 ```
 
 ### 1.9 — Marketing Messages API
 
 ```ts
+// By phone number
 await client.sendMarketingMessage({
 	messaging_product: "whatsapp",
 	to: "+16505551234",
@@ -243,6 +276,17 @@ await client.sendMarketingMessage({
 	},
 	product_policy: "STRICT",
 	message_activity_sharing: true,
+});
+
+// By BSUID (available from May 2026)
+await client.sendMarketingMessage({
+	messaging_product: "whatsapp",
+	recipient: "US.13491208655302741918",
+	type: "template",
+	template: {
+		name: "promo_summer",
+		language: { code: "en_US", policy: "deterministic" },
+	},
 });
 ```
 
@@ -283,8 +327,20 @@ await client.updateCallSettings({
 	},
 });
 
-// Check whether you can call a specific user
+// Check whether you can call a specific user (by phone number)
 const perms = await client.getCallPermissions("+16505551234");
+
+// Or by BSUID
+const permsBsuid = await client.getCallPermissions({
+	recipient: "US.13491208655302741918",
+});
+
+// Initiate a call by BSUID (available from May 2026)
+await client.initiateCall({
+	messaging_product: "whatsapp",
+	recipient: "US.13491208655302741918",
+	session: { sdp_type: "offer", sdp: "<your-sdp>" },
+});
 ```
 
 ### 1.11 — Webhook listener
@@ -304,29 +360,50 @@ webhookClient.initWebhook({
 	onStartListening: () => console.log("WhatsApp webhook ready"),
 
 	onMessageReceived: (message, contact, metadata) => {
-		console.log("Message from", contact?.profile?.name, ":", message);
+		// contact.user_id contains the BSUID (starting March 31, 2026)
+		// contact.wa_id may be omitted if the user enabled usernames
+		const userId = contact?.user_id ?? contact?.wa_id;
+		console.log("Message from", contact?.profile?.name, "(", userId, ")");
+
+		// message.from may be omitted — use message.from_user_id (BSUID) as fallback
+		const sender = message.from ?? message.from_user_id;
+		console.log("Sender identifier:", sender);
 	},
 
 	onTextMessageReceived: (message, contact, metadata) => {
-		console.log("Text:", message.text.body, "from", message.from);
+		console.log("Text:", message.text?.body, "from", message.from ?? message.from_user_id);
 	},
 
 	onStatusReceived: (status, metadata) => {
-		// status: sent | delivered | read | failed
-		console.log("Status update:", status.status, "for", status.id);
+		// status.recipient_id may be omitted if sent to a BSUID
+		// use status.recipient_user_id as fallback
+		const recipientId = status.recipient_id ?? status.recipient_user_id;
+		console.log("Status:", status.status, "for", recipientId);
+
+		// status.contacts[] is included for sent/delivered/read (not failed)
+		status.contacts?.forEach((c) => {
+			console.log("  Contact:", c.profile.name, c.user_id, c.wa_id);
+		});
 	},
 
 	onCallConnected: (call, metadata) => {
-		console.log("Incoming call:", call.call_id, "SDP offer:", call.session);
+		// Business-initiated: call.to_user_id has the callee's BSUID
+		// User-initiated: call.from_user_id has the caller's BSUID
+		console.log("Call:", call.id, call.to_user_id ?? call.from_user_id);
 	},
 
 	onCallTerminated: (call, metadata) => {
-		console.log("Call ended:", call.call_id);
+		console.log("Call ended:", call.id);
 	},
 
 	onMessageEcho: (echo, metadata) => {
-		// Fires for outbound messages sent by your WBA app (smb_message_echoes)
-		console.log("Echo:", echo);
+		// echo.to may be omitted — use echo.to_user_id as fallback
+		console.log("Echo to:", echo.to ?? echo.to_user_id);
+	},
+
+	onBusinessUsernameUpdate: (update) => {
+		// Fires when your business username status changes (approved, reserved, deleted)
+		console.log("Username", update.username, "is now", update.status);
 	},
 
 	onAccountUpdate: (update) => {
@@ -362,6 +439,101 @@ webhookClient.initWebhook({
 
 app.listen(3000);
 ```
+
+### 1.12 — Business usernames
+
+Business usernames are optional, unique identifiers (3–35 characters) mapped 1:1 to a business phone number. Customers can search for your business by username.
+
+```ts
+// Get your current business username
+const { username, status } = await client.getUsername();
+// status: "approved" (visible to users) or "reserved" (not yet visible)
+
+// See usernames reserved for your business portfolio
+const { data } = await client.getReservedUsernames();
+console.log("Suggestions:", data[0].username_suggestions);
+
+// Adopt or change your business username
+const result = await client.adoptUsername("jaspers_market");
+console.log("Status:", result.status); // "approved" or "reserved"
+
+// Delete the business username
+await client.deleteUsername();
+
+// All methods accept an optional phoneNumberId to target a different phone number
+await client.getUsername("OTHER_PHONE_ID");
+await client.adoptUsername("my_brand", "OTHER_PHONE_ID");
+```
+
+### 1.13 — Business-scoped user IDs (BSUIDs)
+
+WhatsApp is rolling out **usernames** for consumers. When a user enables usernames, their phone number may no longer appear in webhooks. To maintain conversation context, Meta assigns each user a **BSUID** (Business-Scoped User ID) unique to your business portfolio.
+
+#### Timeline
+
+| Date               | What happens                                                         |
+| ------------------ | -------------------------------------------------------------------- |
+| **March 31, 2026** | BSUIDs begin appearing in webhook payloads (alongside phone numbers) |
+| **May 2026**       | APIs start accepting BSUIDs for sending messages and calls           |
+
+#### BSUID format
+
+`<ISO-3166-alpha-2>.<alphanumeric>` — e.g. `US.13491208655302741918`
+
+- Scoped to your **business portfolio** (formerly Business Manager)
+- Regenerated if a user changes their phone number
+- Up to 128 alphanumeric characters after the country-code prefix
+
+#### Backward compatibility
+
+All BSUID changes in this SDK are **runtime backward compatible** — safe to deploy today:
+
+- **Before March 31**: Webhooks include phone numbers as usual. New optional BSUID fields (`user_id`, `from_user_id`, etc.) will simply be `undefined`.
+- **Before May 2026**: Continue sending messages with `to` (phone number). The new `recipient` field is optional — just don't set it.
+- **TypeScript caveat**: Previously-required fields like `Message.to`, `WebhookMessage.from`, and `WebhookContact.wa_id` are now optional (`string | undefined`). If your code does `const phone: string = message.from` without a null check, you'll get a **compile error** after upgrading. This is intentional — it forces you to handle the case where phone numbers are absent.
+
+#### Key fields to handle in webhooks
+
+| Webhook type                   | Phone number field | BSUID field                     | Parent BSUID field                            |
+| ------------------------------ | ------------------ | ------------------------------- | --------------------------------------------- |
+| **Contact** (`WebhookContact`) | `wa_id?`           | `user_id?`                      | `parent_user_id?`                             |
+| **Message** (`WebhookMessage`) | `from?`            | `from_user_id?`                 | `from_parent_user_id?`                        |
+| **Status** (`WebhookStatus`)   | `recipient_id?`    | `recipient_user_id?`            | `recipient_parent_user_id?`                   |
+| **Call connect/terminate**     | `to?` / `from?`    | `to_user_id?` / `from_user_id?` | `to_parent_user_id?` / `from_parent_user_id?` |
+| **Message echo**               | `to?`              | `to_user_id?`                   | `to_parent_user_id?`                          |
+
+#### System message: user changed phone number
+
+When a user changes their phone number, a `system` message is delivered with `type.user_changed_user_id: true`. The new BSUID is in `system.user_id`:
+
+```ts
+onMessageReceived: (message, contact) => {
+	if (message.type === "system" && message.system?.type.user_changed_user_id) {
+		const newBsuid = message.system.user_id;
+		const newParentBsuid = message.system.parent_user_id; // if parent BSUIDs enabled
+		// Update your CRM mapping
+	}
+},
+```
+
+#### Recommended migration pattern
+
+```ts
+// Helper: resolve a user identifier from any webhook contact
+function resolveUserId(contact: WebhookContact): string {
+	// Prefer phone number for backward compat, fall back to BSUID
+	return contact.wa_id ?? contact.user_id ?? "unknown";
+}
+
+// Helper: resolve sender from a message
+function resolveSender(message: WebhookMessage): string {
+	return message.from ?? message.from_user_id ?? "unknown";
+}
+```
+
+#### Parent BSUIDs
+
+If your business has **linked business portfolios**, you can enable parent BSUIDs. A parent BSUID works across all linked portfolios, while a regular BSUID is scoped to a single portfolio. Parent BSUIDs appear in `parent_user_id` / `from_parent_user_id` / `recipient_parent_user_id` / `to_parent_user_id` fields.
 
 ---
 
