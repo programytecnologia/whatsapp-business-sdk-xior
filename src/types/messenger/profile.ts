@@ -58,3 +58,25 @@ export type MessengerProfile = {
 export type GetMessengerProfileResponse = {
   data: Partial<MessengerProfile>[];
 };
+
+// --- User Profile API ---
+// Reference: https://developers.facebook.com/docs/messenger-platform/identity/user-profile
+
+export interface UserProfile {
+  first_name?: string;
+  last_name?: string;
+  profile_pic?: string;
+  locale?: string;
+  /** UTC offset (hours) of the user's timezone. */
+  timezone?: number;
+  gender?: string;
+  id: string;
+}
+
+export type UserProfileField =
+  | "first_name"
+  | "last_name"
+  | "profile_pic"
+  | "locale"
+  | "timezone"
+  | "gender";

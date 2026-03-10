@@ -9,22 +9,33 @@ import type {
   BusinessProfileFieldsQuery,
   CallActionPayload,
   CallActionResponse,
+  CreateFlowPayload,
+  CreateFlowResponse,
   CreateTemplatePayload,
   CreateTemplateResponse,
   DefaultResponse,
   DeleteTemplateResponse,
+  Flow,
+  GetAnalyticsParams,
+  GetAnalyticsResponse,
   GetBlockedUsersResponse,
   GetBusinessPhoneNumberResponse,
   GetCallPermissionsResponse,
   GetCallSettingsResponse,
+  GetConversationAnalyticsParams,
+  GetConversationAnalyticsResponse,
+  GetFlowAssetsResponse,
   GetMediaResponse,
   GetTemplatesParams,
   GetTemplatesResponse,
   HealthStatusResponse,
   InitiateCallPayload,
   InitiateCallResponse,
+  ListFlowsResponse,
   MarkMessageAsReadPayload,
   Message,
+  MigrateFlowsPayload,
+  MigrateFlowsResponse,
   RegisterPhoneArgs,
   RegisterPhonePayload,
   RequestPhoneNumberVerificationCodeArgs,
@@ -37,6 +48,7 @@ import type {
   UnblockUsersResponse,
   UpdateBusinessProfilePayload,
   UpdateCallSettingsPayload,
+  UpdateFlowMetadataPayload,
   UpdateIdentityCheckState,
   UpdateTemplatePayload,
   UploadMediaPayload,
@@ -496,6 +508,129 @@ export class WABAClient {
     return this.restClient.post<DefaultResponse>(`${this.phoneId}/smb_app_data`, {
       messaging_product: "whatsapp",
       sync_type: syncType,
+    });
+  }
+
+  /*
+   *
+   *	FLOWS API ENDPOINTS (https://developers.facebook.com/docs/whatsapp/flows/reference/flowsapi)
+   *
+   */
+
+  /** Retrieve all Flows belonging to this WhatsApp Business Account. */
+  listFlows() {
+    return this.restClient.get<ListFlowsResponse>(`${this.accountId}/flows`);
+  }
+
+  /** Create a new Flow. */
+  createFlow(payload: CreateFlowPayload) {
+    return this.restClient.post<CreateFlowResponse, CreateFlowPayload>(
+      `${this.accountId}/flows`,
+      payload,
+    );
+  }
+
+  /**
+   * Retrieve details for a specific Flow.
+   *
+   * @param flowId - The Flow ID.
+   * @param fields - Optional comma-separated fields to retrieve
+   *   (e.g. "id,name,status,categories,validation_errors,json_version,data_api_version,endpoint_uri,preview,health_status").
+   */
+  getFlow(flowId: string, fields?: string) {
+    return this.restClient.get<Flow>(flowId, undefined, {
+      params: fields ? { fields } : undefined,
+    });
+  }
+
+  /** Update a Flow's name or categories. */
+  updateFlowMetadata(flowId: string, payload: UpdateFlowMetadataPayload) {
+    return this.restClient.post<{ success: boolean }, UpdateFlowMetadataPayload>(flowId, payload);
+  }
+
+  /**
+   * Upload or replace the Flow JSON for a Draft Flow.
+   *
+   * @param flowId - The Flow ID.
+   * @param formData - A `FormData` instance with fields `file` (the JSON buffer),
+   *   `name` ("flow.json"), and `asset_type` ("FLOW_JSON").
+   */
+  updateFlowJson(flowId: string, formData: FormData) {
+    return this.restClient.post<CreateFlowResponse, FormData>(`${flowId}/assets`, formData, {
+      headers: formData.getHeaders(),
+    });
+  }
+
+  /** Retrieve the downloadable assets (e.g. Flow JSON) for a Flow. */
+  getFlowAssets(flowId: string) {
+    return this.restClient.get<GetFlowAssetsResponse>(`${flowId}/assets`);
+  }
+
+  /**
+   * Retrieve a preview URL for a Flow.
+   *
+   * @param flowId - The Flow ID.
+   * @param invalidate - When `true`, generates a fresh preview URL (default false).
+   */
+  getFlowPreview(flowId: string, invalidate = false) {
+    return this.restClient.get<Flow>(flowId, undefined, {
+      params: { fields: `preview.invalidate(${invalidate})` },
+    });
+  }
+
+  /** Publish a Draft Flow, making it available for use in messages. */
+  publishFlow(flowId: string) {
+    return this.restClient.post<{ success: boolean }>(`${flowId}/publish`);
+  }
+
+  /** Deprecate a Published Flow. Deprecated Flows can no longer initiate new sessions. */
+  deprecateFlow(flowId: string) {
+    return this.restClient.post<{ success: boolean }>(`${flowId}/deprecate`);
+  }
+
+  /** Permanently delete a Draft Flow. Published/Deprecated Flows must be deprecated first. */
+  deleteFlow(flowId: string) {
+    return this.restClient.delete<{ success: boolean }>(flowId);
+  }
+
+  /**
+   * Migrate Flows from another WABA to this account.
+   *
+   * @param destinationWabaId - The WABA to migrate flows into.
+   * @param payload - `{ source_waba_id, source_flow_names }`.
+   */
+  migrateFlows(destinationWabaId: string, payload: MigrateFlowsPayload) {
+    return this.restClient.post<MigrateFlowsResponse, MigrateFlowsPayload>(
+      `${destinationWabaId}/migrate_flows`,
+      payload,
+    );
+  }
+
+  /*
+   *
+   *	ANALYTICS ENDPOINTS (https://developers.facebook.com/docs/whatsapp/business-management-api/analytics)
+   *
+   */
+
+  /**
+   * Retrieve message-level analytics (sent / delivered counts) for this WABA.
+   *
+   * @param params - Query parameters including `start`, `end`, `granularity`, etc.
+   */
+  getMessageAnalytics(params: GetAnalyticsParams) {
+    return this.restClient.get<GetAnalyticsResponse>(`${this.accountId}`, undefined, {
+      params: { fields: "analytics", ...params },
+    });
+  }
+
+  /**
+   * Retrieve conversation-level analytics (count and cost per conversation type) for this WABA.
+   *
+   * @param params - Query parameters including `start`, `end`, `granularity`, etc.
+   */
+  getConversationAnalytics(params: GetConversationAnalyticsParams) {
+    return this.restClient.get<GetConversationAnalyticsResponse>(`${this.accountId}`, undefined, {
+      params: { fields: "conversation_analytics", ...params },
     });
   }
 }

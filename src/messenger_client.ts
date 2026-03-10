@@ -1,3 +1,4 @@
+import type { GetConversationsParams, GetConversationsResponse } from "./types/conversations";
 import type {
   AttachmentUploadResponse,
   CreatePersonaPayload,
@@ -16,6 +17,8 @@ import type {
   Persona,
   QuickReply,
   SenderAction,
+  UserProfile,
+  UserProfileField,
 } from "./types/messenger";
 import { MessengerErrorHandler } from "./utils/messengerErrorHandler";
 import { createRestClient } from "./utils/restClient";
@@ -205,5 +208,67 @@ export class MessengerClient {
   /** Delete a Persona by ID. */
   deletePersona(personaId: string) {
     return this.restClient.delete<{ success: boolean }>(personaId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // User Profile API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Retrieve a Messenger user's profile by their Page-Scoped ID (PSID).
+   *
+   * Documentation: https://developers.facebook.com/docs/messenger-platform/identity/user-profile
+   *
+   * @param psid - The Page-Scoped ID of the user.
+   * @param fields - Profile fields to retrieve (defaults to common fields).
+   */
+  getUserProfile(
+    psid: string,
+    fields: UserProfileField[] = ["first_name", "last_name", "profile_pic", "locale", "timezone"],
+  ) {
+    return this.restClient.get<UserProfile>(psid, undefined, {
+      params: { fields: fields.join(",") },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Conversations / Inbox API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Retrieve a list of conversations for this Page.
+   *
+   * Documentation: https://developers.facebook.com/docs/graph-api/reference/page/conversations
+   *
+   * @param params - Optional filters: fields, platform, folder, limit, cursor, etc.
+   */
+  getConversations(params?: GetConversationsParams) {
+    const { fields, ...rest } = params ?? {};
+    const fieldsValue = Array.isArray(fields) ? fields.join(",") : fields;
+    return this.restClient.get<GetConversationsResponse>("me/conversations", undefined, {
+      params: { ...(fieldsValue ? { fields: fieldsValue } : {}), ...rest },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private Replies
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Send a private DM reply to a user who commented on or posted to your Page.
+   *
+   * Documentation: https://developers.facebook.com/docs/messenger-platform/discovery/private-replies
+   *
+   * Only one message can be sent per post/comment; the comment must be less than 7 days old.
+   * Pass either `post_id` or `comment_id` (not both).
+   *
+   * @param recipient - `{ post_id: "..." }` or `{ comment_id: "..." }`
+   * @param text - The text message to send.
+   */
+  sendPrivateReply(recipient: { post_id: string } | { comment_id: string }, text: string) {
+    return this.restClient.post<MessengerSendResponse>(`${this.pageId}/messages`, {
+      recipient,
+      message: { text },
+    });
   }
 }

@@ -1,3 +1,4 @@
+import type { GetConversationsParams, GetConversationsResponse } from "./types/conversations";
 import type {
   GetIGCommentsResponse,
   IGAttachment,
@@ -126,5 +127,27 @@ export class InstagramClient {
 
   setProfile(payload: Record<string, unknown>) {
     return this.restClient.post<{ result: string }>(`${this.igUserId}/messenger_profile`, payload);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Conversations / Inbox API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Retrieve a list of Instagram messaging conversations for this account.
+   *
+   * Documentation: https://developers.facebook.com/docs/graph-api/reference/page/conversations
+   *   (Instagram requires platform=instagram or using the ig-user-id edge)
+   *
+   * @param params - Optional filters: fields, limit, cursor, etc.
+   */
+  getConversations(params?: GetConversationsParams) {
+    const { fields, ...rest } = params ?? {};
+    const fieldsValue = Array.isArray(fields) ? fields.join(",") : fields;
+    return this.restClient.get<GetConversationsResponse>(
+      `${this.igUserId}/conversations`,
+      undefined,
+      { params: { ...(fieldsValue ? { fields: fieldsValue } : {}), ...rest } },
+    );
   }
 }

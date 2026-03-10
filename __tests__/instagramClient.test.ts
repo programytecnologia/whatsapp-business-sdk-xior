@@ -219,4 +219,38 @@ describe("InstagramClient", () => {
       expect(body.message.attachment.type).toBe("video");
     });
   });
+
+  // ── Conversations API ───────────────────────────────────────────────────────
+
+  describe("getConversations()", () => {
+    it("calls GET {igUserId}/conversations with no extra params by default", async () => {
+      await client.getConversations();
+
+      const endpoint = callEndpoint(client.restClient.get as jest.Mock);
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(endpoint).toBe(`${IG_USER_ID}/conversations`);
+      expect(config.params).toEqual({});
+    });
+
+    it("passes string fields param", async () => {
+      await client.getConversations({ fields: "id,snippet" });
+
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toEqual({ fields: "id,snippet" });
+    });
+
+    it("joins array fields into comma-separated string", async () => {
+      await client.getConversations({ fields: ["id", "snippet", "updated_time"] });
+
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toEqual({ fields: "id,snippet,updated_time" });
+    });
+
+    it("passes pagination params", async () => {
+      await client.getConversations({ limit: 5, after: "cursor-abc" });
+
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toMatchObject({ limit: 5, after: "cursor-abc" });
+    });
+  });
 });

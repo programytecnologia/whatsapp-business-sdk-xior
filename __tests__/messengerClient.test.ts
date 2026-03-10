@@ -322,4 +322,86 @@ describe("MessengerClient", () => {
       expect(endpoint).toBe("persona-abc");
     });
   });
+
+  // ── User Profile API ────────────────────────────────────────────────────────
+
+  describe("getUserProfile()", () => {
+    it("calls GET /{psid} with default fields", async () => {
+      await client.getUserProfile("user-psid-123");
+
+      const endpoint = callEndpoint(client.restClient.get as jest.Mock);
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(endpoint).toBe("user-psid-123");
+      expect(config.params).toEqual({
+        fields: "first_name,last_name,profile_pic,locale,timezone",
+      });
+    });
+
+    it("calls GET /{psid} with custom fields", async () => {
+      await client.getUserProfile("user-psid-123", ["first_name", "gender"]);
+
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toEqual({ fields: "first_name,gender" });
+    });
+  });
+
+  // ── Conversations API ───────────────────────────────────────────────────────
+
+  describe("getConversations()", () => {
+    it("calls GET me/conversations with no extra params by default", async () => {
+      await client.getConversations();
+
+      const endpoint = callEndpoint(client.restClient.get as jest.Mock);
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(endpoint).toBe("me/conversations");
+      expect(config.params).toEqual({});
+    });
+
+    it("passes string fields param", async () => {
+      await client.getConversations({ fields: "id,snippet,updated_time" });
+
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toEqual({ fields: "id,snippet,updated_time" });
+    });
+
+    it("joins array fields param into comma-separated string", async () => {
+      await client.getConversations({ fields: ["id", "snippet", "updated_time"] });
+
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toEqual({ fields: "id,snippet,updated_time" });
+    });
+
+    it("passes additional params like limit and platform", async () => {
+      await client.getConversations({ limit: 10, platform: "messenger" });
+
+      const config = callConfig(client.restClient.get as jest.Mock);
+      expect(config.params).toMatchObject({ limit: 10, platform: "messenger" });
+    });
+  });
+
+  // ── Private Replies ─────────────────────────────────────────────────────────
+
+  describe("sendPrivateReply()", () => {
+    it("sends a private reply to a comment via POST {pageId}/messages", async () => {
+      await client.sendPrivateReply({ comment_id: "comment-xyz" }, "Thanks for your comment!");
+
+      const endpoint = callEndpoint(client.restClient.post as jest.Mock);
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(endpoint).toBe(`${PAGE_ID}/messages`);
+      expect(body).toEqual({
+        recipient: { comment_id: "comment-xyz" },
+        message: { text: "Thanks for your comment!" },
+      });
+    });
+
+    it("sends a private reply to a post via POST {pageId}/messages", async () => {
+      await client.sendPrivateReply({ post_id: "post-abc" }, "We'll help you shortly!");
+
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body).toEqual({
+        recipient: { post_id: "post-abc" },
+        message: { text: "We'll help you shortly!" },
+      });
+    });
+  });
 });
