@@ -1,13 +1,13 @@
 {
   "name": "@programytecnologia/whatsapp-business-sdk",
-  "author": "MarcosNicolau",
+  "author": "ProgramyTecnologia",
   "version": "1.14.3",
   "description": "Node.js connector for the WhatsApp Business APIs with TypeScript support, integration tests and more.",
   "license": "MIT",
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://github.com/MarcosNicolau/whatsapp-business-sdk/blob/main/LICENSE"
+      "url": "https://github.com/ProgramyTecnologia/whatsapp-business-sdk-xior/blob/main/LICENSE"
     }
   ],
   "main": "./dist/src/index.js",
@@ -30,12 +30,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MarcosNicolau/whatsapp-business-sdk.git"
+    "url": "https://github.com/ProgramyTecnologia/whatsapp-business-sdk-xior.git"
   },
-  "homepage": "https://github.com/MarcosNicolau/whatsapp-business-sdk",
+  "homepage": "https://github.com/ProgramyTecnologia/whatsapp-business-sdk-xior",
   "bugs": {
-    "url": "https://github.com/MarcosNicolau/whatsapp-business-sdk/issues",
-    "email": "marcosnicolau2003@gmail.com"
+    "url": "https://github.com/ProgramyTecnologia/whatsapp-business-sdk-xior/issues",
+    "email": "github@programy.com.br"
   },
   "dependencies": {
     "express": "^5.2.1",
