@@ -26,7 +26,8 @@
     "format": "biome format . --write",
     "prepare": "husky && tsc --build",
     "cm": "cz",
-    "checkup": "pnpm lint && pnpm test && pnpm build"
+    "checkup": "pnpm lint && pnpm test && pnpm build",
+    "release": "pnpm checkup && npm version"
   },
   "repository": {
     "type": "git",
