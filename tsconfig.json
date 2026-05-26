@@ -1,9 +1,9 @@
 {
   "ts-node": { "files": true },
   "compilerOptions": {
-    "target": "es5",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "es2017",
+    "module": "Node16",
+    "moduleResolution": "node16",
     "allowJs": false,
     "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
@@ -11,7 +11,7 @@
     "resolveJsonModule": true,
     "declaration": true,
     "outDir": "dist",
-    "lib": ["es7", "dom"],
+    "lib": ["es2017", "dom"],
     "skipDefaultLibCheck": true,
     "skipLibCheck": true,
     "composite": true,
