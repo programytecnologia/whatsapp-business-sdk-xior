@@ -27,9 +27,9 @@
     "prepare": "husky && tsc --build",
     "cm": "cz",
     "checkup": "pnpm lint && pnpm test && pnpm build",
-    "release:minor": "pnpm checkup && npm version minor && npm publish",
-    "release:patch": "pnpm checkup && npm version patch && npm publish",
-    "release:major": "pnpm checkup && npm version major && npm publish"
+    "release:minor": "pnpm checkup && npm version minor && git push origin HEAD --follow-tags",
+    "release:patch": "pnpm checkup && npm version patch && git push origin HEAD --follow-tags",
+    "release:major": "pnpm checkup && npm version major && git push origin HEAD --follow-tags"
   },
   "repository": {
     "type": "git",
