@@ -63,6 +63,7 @@ import type {
   VerifyPhoneNumberArgs,
 } from "./types";
 import { WABAErrorHandler } from "./utils/errorHandler";
+import { resolveRecipient } from "./utils/identifiers";
 import { createRestClient } from "./utils/restClient";
 
 interface WABAClientArgs {
@@ -70,6 +71,27 @@ interface WABAClientArgs {
   phoneId: string;
   accountId: string;
 }
+
+type OutboundMessagePayload = Omit<Message, "messaging_product"> &
+  Partial<Pick<Message, "messaging_product">>;
+
+const buildOutboundMessagePayload = <Payload extends OutboundMessagePayload>(payload: Payload) => {
+  const { contact, messaging_product: _messagingProduct, recipient, to, ...rest } = payload;
+  const contactRecipient = contact ? resolveRecipient(contact) : undefined;
+  const resolvedTo = to ?? contactRecipient?.to;
+  const resolvedRecipient = resolvedTo ? undefined : (recipient ?? contactRecipient?.recipient);
+
+  if (!resolvedTo && !resolvedRecipient) {
+    throw new Error("Either to, recipient, or contact with wa_id/user_id must be provided");
+  }
+
+  return {
+    ...rest,
+    ...(resolvedTo ? { to: resolvedTo } : {}),
+    ...(!resolvedTo && resolvedRecipient ? { recipient: resolvedRecipient } : {}),
+    messaging_product: "whatsapp" as const,
+  };
+};
 
 /**
  * Connector for the Whatsapp Cloud API.
@@ -197,10 +219,10 @@ export class WABAClient {
    *
    */
   async sendMessage(payload: Omit<Message, "messaging_product">) {
-    return this.restClient.post<SendMessageResponse, Message>(`${this.phoneId}/messages`, {
-      ...payload,
-      messaging_product: "whatsapp",
-    });
+    return this.restClient.post<SendMessageResponse, Message>(
+      `${this.phoneId}/messages`,
+      buildOutboundMessagePayload(payload),
+    );
   }
   /**
    * When you receive an incoming message from Webhooks,
@@ -505,7 +527,7 @@ export class WABAClient {
   async sendMarketingMessage(payload: SendMarketingMessagePayload) {
     return this.restClient.post<SendMessageResponse, SendMarketingMessagePayload>(
       `${this.phoneId}/marketing_messages`,
-      payload,
+      buildOutboundMessagePayload(payload),
     );
   }
 

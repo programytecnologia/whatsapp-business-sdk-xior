@@ -57,11 +57,18 @@ await client.sendMessage({
 	text: { body: "Hello from WhatsApp!" },
 });
 
-// Plain text (by BSUID — available from May 2026)
+// Plain text (by BSUID — subject to Meta's June 2026 send rollout)
 await client.sendMessage({
 	recipient: "US.13491208655302741918",
 	type: "text",
 	text: { body: "Hello via BSUID!" },
+});
+
+// Reply using a webhook contact — resolves wa_id to `to`, or user_id to `recipient`
+await client.sendMessage({
+	contact,
+	type: "text",
+	text: { body: "Thanks for your message!" },
 });
 
 // Both identifiers — phone number takes precedence, BSUID is returned in the response
@@ -304,7 +311,7 @@ await client.sendMarketingMessage({
 	message_activity_sharing: true,
 });
 
-// By BSUID (available from May 2026)
+// By BSUID (subject to Meta's June 2026 send rollout)
 await client.sendMarketingMessage({
 	messaging_product: "whatsapp",
 	recipient: "US.13491208655302741918",
@@ -361,7 +368,7 @@ const permsBsuid = await client.getCallPermissions({
 	recipient: "US.13491208655302741918",
 });
 
-// Initiate a call by BSUID (available from May 2026)
+// Initiate a call by BSUID (subject to Meta's June 2026 send rollout)
 await client.initiateCall({
 	messaging_product: "whatsapp",
 	recipient: "US.13491208655302741918",
@@ -507,7 +514,7 @@ WhatsApp is rolling out **usernames** for consumers. When a user enables usernam
 | Date               | What happens                                                         |
 | ------------------ | -------------------------------------------------------------------- |
 | **March 31, 2026** | BSUIDs begin appearing in webhook payloads (alongside phone numbers) |
-| **May 2026**       | APIs start accepting BSUIDs for sending messages and calls           |
+| **June 2026**      | APIs start accepting BSUIDs for sending messages and calls as Meta enables the rollout |
 
 #### BSUID format
 
@@ -522,7 +529,7 @@ WhatsApp is rolling out **usernames** for consumers. When a user enables usernam
 All BSUID changes in this SDK are **runtime backward compatible** — safe to deploy today:
 
 - **Before March 31**: Webhooks include phone numbers as usual. New optional BSUID fields (`user_id`, `from_user_id`, etc.) will simply be `undefined`.
-- **Before May 2026**: Continue sending messages with `to` (phone number). The new `recipient` field is optional — just don't set it.
+- **Before your account is enabled for the June 2026 send rollout**: Continue sending messages with `to` (phone number). The new `recipient` field is optional — just don't set it.
 - **TypeScript caveat**: Previously-required fields like `Message.to`, `WebhookMessage.from`, and `WebhookContact.wa_id` are now optional (`string | undefined`). If your code does `const phone: string = message.from` without a null check, you'll get a **compile error** after upgrading. This is intentional — it forces you to handle the case where phone numbers are absent.
 
 #### Key fields to handle in webhooks

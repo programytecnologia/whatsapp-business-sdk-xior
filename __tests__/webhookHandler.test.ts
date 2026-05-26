@@ -6,9 +6,11 @@ import type {
   WebhookBusinessCapabilityUpdate,
   WebhookCallConnect,
   WebhookCallTerminate,
+  WebhookContact,
   WebhookEvents,
   WebhookFlow,
   WebhookHistory,
+  WebhookMessage,
   WebhookMessageEcho,
   WebhookPhoneNumberNameUpdate,
   WebhookPhoneNumberQualityUpdate,
@@ -742,6 +744,107 @@ describe("webhookHandler — new features", () => {
       expect(events.onMessageReceived).toHaveBeenCalledTimes(1);
       expect(events.onTextMessageReceived).toHaveBeenCalledTimes(1);
       expect(events.onMessageEcho).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("BSUID and username webhook payloads", () => {
+    it("accepts a contact with user_id, username, and no wa_id", () => {
+      const contact: WebhookContact = {
+        user_id: "US.13491208655302741918",
+        parent_user_id: "US.parent13491208655302741918",
+        profile: { name: "Test User", username: "test.user" },
+      };
+      const message: WebhookMessage = {
+        from_user_id: "US.13491208655302741918",
+        from_parent_user_id: "US.parent13491208655302741918",
+        id: "wamid.bsuid1",
+        timestamp: "1739321000",
+        type: "text",
+        text: { body: "Hi from username-only user" },
+      };
+
+      expect(() =>
+        webhookHandler(makeBody({ contacts: [contact], messages: [message] }), events),
+      ).not.toThrow();
+
+      expect(events.onMessageReceived).toHaveBeenCalledWith(message, contact, metadata);
+    });
+
+    it("passes from_user_id through the text-message convenience callback when from is absent", () => {
+      const contact: WebhookContact = {
+        user_id: "US.13491208655302741918",
+        profile: { name: "Test User", username: "test.user" },
+      };
+      const message: WebhookMessage = {
+        from_user_id: "US.13491208655302741918",
+        id: "wamid.bsuid2",
+        timestamp: "1739321000",
+        type: "text",
+        text: { body: "Hi" },
+      };
+
+      webhookHandler(makeBody({ contacts: [contact], messages: [message] }), events);
+
+      expect(events.onTextMessageReceived).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "wamid.bsuid2",
+          from: undefined,
+          from_user_id: "US.13491208655302741918",
+        }),
+        contact,
+        metadata,
+      );
+    });
+
+    it("accepts a user_changed_user_id system event", () => {
+      const contact: WebhookContact = {
+        user_id: "US.999999999",
+        profile: { name: "Test User" },
+      };
+      const message: WebhookMessage = {
+        from_user_id: "US.999999999",
+        id: "wamid.system1",
+        timestamp: "1739321000",
+        type: "system",
+        system: {
+          body: "User changed their phone number",
+          identity: "identity-hash",
+          new_wa_id: "16505559876",
+          wa_id: "16505559876",
+          customer: "16505551234",
+          user_id: "US.999999999",
+          parent_user_id: "US.parent999",
+          type: {
+            customer_changed_number: false,
+            customer_identity_changed: false,
+            user_changed_user_id: true,
+          },
+        },
+      };
+
+      webhookHandler(makeBody({ contacts: [contact], messages: [message] }), events);
+
+      expect(events.onMessageReceived).toHaveBeenCalledWith(message, contact, metadata);
+    });
+
+    it("accepts a status with recipient_user_id and no recipient_id", () => {
+      const status: WebhookStatus = {
+        ...baseStatus,
+        recipient_id: undefined,
+        recipient_user_id: "US.13491208655302741918",
+        recipient_parent_user_id: "US.parent13491208655302741918",
+        contacts: [
+          {
+            user_id: "US.13491208655302741918",
+            parent_user_id: "US.parent13491208655302741918",
+            profile: { name: "Test User", username: "test.user" },
+          },
+        ],
+      };
+
+      webhookHandler(makeBody({ statuses: [status] }), events);
+
+      expect(events.onStatusReceived).toHaveBeenCalledWith(status, metadata);
     });
   });
 

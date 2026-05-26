@@ -58,6 +58,13 @@ export type MessageContext = {
   message_id: string;
 };
 
+export type MessageRecipientContact = {
+  /** The customer's WhatsApp ID / phone number. */
+  wa_id?: string;
+  /** The customer's Business-Scoped User ID (BSUID). */
+  user_id?: string;
+};
+
 export type Message = {
   /**
    * Defaults to text
@@ -88,9 +95,15 @@ export type Message = {
    * The recipient's Business-Scoped User ID (BSUID). Use instead of `to` when you don't
    * know the user's phone number, or alongside `to` (phone number takes precedence).
    * Format: `<ISO-3166-alpha-2-country-code>.<alphanumeric>`, e.g. `US.13491208655302741918`.
-   * API support for sending to BSUIDs is available from May 2026.
+   * API support for sending to BSUIDs depends on Meta's June 2026 rollout for your account.
    */
   recipient?: string;
+  /**
+   * A webhook contact-like object. The client resolves this to `to` when `wa_id`
+   * is present, otherwise to `recipient` when `user_id` is present.
+   * This convenience field is not sent to Meta.
+   */
+  contact?: MessageRecipientContact;
   /**
    * Required when type=audio.
    */

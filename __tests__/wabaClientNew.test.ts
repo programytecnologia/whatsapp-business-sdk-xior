@@ -8,6 +8,7 @@
 import type {
   CreateTemplatePayload,
   SendMarketingMessagePayload,
+  SendMessageResponse,
   UpdateCallSettingsPayload,
   UpdateTemplatePayload,
 } from "../src/types";
@@ -66,6 +67,125 @@ describe("WABAClient — new methods", () => {
   describe("API version", () => {
     it("uses Graph API v25.0 as the base URL", () => {
       expect(client.restClient.config.baseURL).toBe("https://graph.facebook.com/v25.0");
+    });
+  });
+
+  describe("Messages API", () => {
+    it("sendMessage — posts a to-only payload with messaging_product", async () => {
+      await client.sendMessage({
+        to: "16505551234",
+        type: "text",
+        text: { body: "Hello by phone" },
+      });
+
+      expect(client.restClient.post).toHaveBeenCalledWith(`${PHONE_ID}/messages`, {
+        to: "16505551234",
+        type: "text",
+        text: { body: "Hello by phone" },
+        messaging_product: "whatsapp",
+      });
+    });
+
+    it("sendMessage — posts a recipient-only BSUID payload without requiring to", async () => {
+      await client.sendMessage({
+        recipient: "US.13491208655302741918",
+        type: "text",
+        text: { body: "Hello by BSUID" },
+      });
+
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body).toEqual({
+        recipient: "US.13491208655302741918",
+        type: "text",
+        text: { body: "Hello by BSUID" },
+        messaging_product: "whatsapp",
+      });
+    });
+
+    it("sendMessage — when both identifiers are provided, phone number wins", async () => {
+      await client.sendMessage({
+        to: "16505551234",
+        recipient: "US.13491208655302741918",
+        type: "text",
+        text: { body: "Hello" },
+      });
+
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.to).toBe("16505551234");
+      expect(body).not.toHaveProperty("recipient");
+    });
+
+    it("sendMessage — resolves a webhook contact with wa_id to to", async () => {
+      await client.sendMessage({
+        contact: {
+          wa_id: "16505551234",
+          user_id: "US.13491208655302741918",
+        },
+        type: "text",
+        text: { body: "Hello by contact" },
+      });
+
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.to).toBe("16505551234");
+      expect(body).not.toHaveProperty("recipient");
+      expect(body).not.toHaveProperty("contact");
+    });
+
+    it("sendMessage — resolves a webhook contact with only user_id to recipient", async () => {
+      await client.sendMessage({
+        contact: {
+          user_id: "US.13491208655302741918",
+        },
+        type: "text",
+        text: { body: "Hello by username-only contact" },
+      });
+
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.recipient).toBe("US.13491208655302741918");
+      expect(body).not.toHaveProperty("to");
+      expect(body).not.toHaveProperty("contact");
+    });
+
+    it("sendMessage — throws when neither to, recipient, nor contact identifier is provided", async () => {
+      await expect(
+        client.sendMessage({
+          type: "text",
+          text: { body: "Missing recipient" },
+        }),
+      ).rejects.toThrow("Either to, recipient, or contact with wa_id/user_id must be provided");
+
+      expect(client.restClient.post).not.toHaveBeenCalled();
+    });
+
+    it("sendMessage — returns contacts with input and user_id from the response", async () => {
+      const response: SendMessageResponse = {
+        messaging_product: "whatsapp",
+        contacts: [
+          {
+            input: "US.13491208655302741918",
+            user_id: "US.13491208655302741918",
+          },
+        ],
+        messages: [{ id: "wamid.123" }],
+      };
+      (client.restClient.post as jest.Mock).mockResolvedValueOnce(response);
+
+      await expect(
+        client.sendMessage({
+          recipient: "US.13491208655302741918",
+          type: "text",
+          text: { body: "Hello by BSUID" },
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          contacts: [
+            expect.objectContaining({
+              input: "US.13491208655302741918",
+              user_id: "US.13491208655302741918",
+            }),
+          ],
+        }),
+      );
     });
   });
 
@@ -508,6 +628,19 @@ describe("WABAClient — new methods", () => {
 
       const body = callBody(client.restClient.post as jest.Mock);
       expect(body).toEqual(payload);
+    });
+
+    it("resolves contact before posting and does not send contact to Meta", async () => {
+      await client.sendMarketingMessage({
+        ...baseMarketingPayload,
+        to: undefined,
+        contact: { user_id: "US.13491208655302741918" },
+      });
+
+      const body = callBody(client.restClient.post as jest.Mock);
+      expect(body.recipient).toBe("US.13491208655302741918");
+      expect(body).not.toHaveProperty("to");
+      expect(body).not.toHaveProperty("contact");
     });
 
     it("does not post to the regular /messages endpoint", async () => {

@@ -3,6 +3,7 @@ export * from "./messenger_client";
 export * from "./types";
 export * from "./types/instagram";
 export * from "./types/messenger";
+export * from "./utils/identifiers";
 export * from "./WABA_client";
 export * from "./webhooks/client";
 export * from "./webhooks/instagram/client";

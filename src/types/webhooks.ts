@@ -801,7 +801,10 @@ export type WebhookEvents = {
    * Gets fired when the received message is type of text
    */
   onTextMessageReceived?: (
-    textMessage: Pick<WebhookMessage, "type" | "timestamp" | "text" | "from" | "id">,
+    textMessage: Pick<
+      WebhookMessage,
+      "type" | "timestamp" | "text" | "from" | "from_user_id" | "from_parent_user_id" | "id"
+    >,
     contact: WebhookContact,
     metadata?: WebhookMetadata,
   ) => void;

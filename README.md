@@ -136,18 +136,24 @@ await client.sendText("USER_IGSID", "Hello from Instagram!");
 
 ## BSUID support
 
-Starting **March 31, 2026**, WhatsApp delivers Business-Scoped User IDs alongside phone numbers in webhooks. Starting **May 2026**, BSUIDs can be used to send messages and calls directly.
+Starting **March 31, 2026**, WhatsApp delivers Business-Scoped User IDs alongside phone numbers in webhooks. Sending to BSUIDs uses the `recipient` field and is tied to Meta's June 2026 rollout, so keep using `to` when a phone number is available until your account is enabled.
 
 All SDK types are backward compatible — `wa_id`, `from`, and `recipient_id` become optional; their BSUID counterparts (`user_id`, `from_user_id`, `recipient_user_id`) appear alongside them.
 
 ```ts
 webhookClient.initWebhook({
 	onMessageReceived: (message, contact) => {
-		// phone number OR bsuid — whichever is present
-		const sender = contact.wa_id ?? contact.user_id;
+		return client.sendMessage({
+			// The client resolves contact.wa_id to `to`, or contact.user_id to `recipient`.
+			contact,
+			type: "text",
+			text: { body: "Got your message!" },
+		});
 	},
 });
 ```
+
+The SDK also exports `isBsuid`, `resolveRecipient`, `isUserChangedUserIdSystemMessage`, and `getUserChangedUserIdEvent` for app-side identifier detection and BSUID-regeneration system events.
 
 See [docs/GUIDE.md](docs/GUIDE.md#113--business-scoped-user-ids-bsuids) for the full migration guide.
 

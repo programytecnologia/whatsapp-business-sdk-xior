@@ -1,3 +1,13 @@
+## [2.2.0] - 2026-05-26
+
+### BSUID & usernames
+
+* Added runtime support for sending WhatsApp messages with `recipient` (BSUID) when `to` is not available.
+* Added `contact` send payload support so webhook contacts can be resolved internally to `to` or `recipient`.
+* Added `isBsuid`, `resolveRecipient`, `isUserChangedUserIdSystemMessage`, and `getUserChangedUserIdEvent` helpers.
+* Preserved `from_user_id` and `from_parent_user_id` in text webhook convenience callbacks.
+* Documented the June 2026 BSUID send rollout caveat: prefer `to` when a phone number is available until Meta enables `recipient` sending for your account.
+
 ## [1.14.3](https://github.com/MarcosNicolau/whatsapp-business-sdk/compare/v1.14.2...v1.14.3) (2025-02-03)
 
 

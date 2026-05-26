@@ -111,6 +111,8 @@ export const webhookHandler = (
               type: message.type,
               text: message.text,
               from: message.from,
+              from_user_id: message.from_user_id,
+              from_parent_user_id: message.from_parent_user_id,
               timestamp: message.timestamp,
             },
             contact,
