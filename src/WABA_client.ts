@@ -288,7 +288,7 @@ export class WABAClient {
     );
   }
   async verifyPhoneNumberCode({ phoneNumberId, ...payload }: VerifyPhoneNumberArgs) {
-    return this.restClient.post<DefaultResponse>(`/${phoneNumberId}/verify_code`, payload);
+    return this.restClient.post<DefaultResponse>(`${phoneNumberId}/verify_code`, payload);
   }
   async registerPhone({ phoneNumberId, ...payload }: RegisterPhoneArgs) {
     return this.restClient.post<DefaultResponse, RegisterPhonePayload>(

@@ -18,6 +18,18 @@ interface RestClientParams {
   errorHandler?: (error: HttpError) => unknown;
 }
 
+// Graph API params such as `time_range` or `filtering` are JSON-encoded objects; arrays of
+// primitives keep the comma-joined form (`fields=a,b`).
+const serializeParam = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.some((item) => typeof item === "object" && item !== null)
+      ? JSON.stringify(value)
+      : value.join(",");
+  }
+  if (typeof value === "object" && value !== null) return JSON.stringify(value);
+  return String(value);
+};
+
 const buildUrl = (
   defaultBaseURL: string | undefined,
   endpoint: string,
@@ -29,12 +41,13 @@ const buildUrl = (
   if (!base) {
     url = new URL(endpoint);
   } else {
-    url = new URL(endpoint, base.endsWith("/") ? base : `${base}/`);
+    // A leading slash would resolve against the origin and drop the version path (`/v25.0`).
+    url = new URL(endpoint.replace(/^\/+/, ""), base.endsWith("/") ? base : `${base}/`);
   }
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
-        url.searchParams.set(key, String(value));
+        url.searchParams.set(key, serializeParam(value));
       }
     }
   }

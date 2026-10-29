@@ -88,4 +88,51 @@ describe("create rest client", () => {
     expect(restClient.config.headers.authorization).toBe("Bearer 123456");
     expect(restClient.config.baseURL).toBe("hola");
   });
+
+  it("should keep the base path for endpoints with a leading slash", async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve("{}") });
+    const restClient = createRestClient({ baseURL: "https://graph.facebook.com/v25.0" });
+
+    await restClient.post("/123/verify_code", { code: "000000" });
+    await restClient.get("456");
+
+    expect(mockFetch.mock.calls[0][0]).toBe("https://graph.facebook.com/v25.0/123/verify_code");
+    expect(mockFetch.mock.calls[1][0]).toBe("https://graph.facebook.com/v25.0/456");
+  });
+
+  it("should leave absolute endpoints untouched", async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve("{}") });
+    const restClient = createRestClient({ baseURL: "https://graph.facebook.com/v25.0" });
+
+    await restClient.get("https://graph.facebook.com/v25.0/123/insights?after=abc");
+
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      "https://graph.facebook.com/v25.0/123/insights?after=abc",
+    );
+  });
+
+  it("should serialize object and array params", async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve("{}") });
+    const restClient = createRestClient({ baseURL: "https://graph.facebook.com/v25.0" });
+
+    await restClient.get("act_1/insights", undefined, {
+      params: {
+        fields: ["spend", "impressions"],
+        time_range: { since: "2026-10-01", until: "2026-10-28" },
+        filtering: [{ field: "ad.effective_status", operator: "IN", value: ["ACTIVE"] }],
+        limit: 50,
+      },
+    });
+
+    const url = new URL(mockFetch.mock.calls[0][0]);
+    expect(url.searchParams.get("fields")).toBe("spend,impressions");
+    expect(JSON.parse(url.searchParams.get("time_range") ?? "")).toEqual({
+      since: "2026-10-01",
+      until: "2026-10-28",
+    });
+    expect(JSON.parse(url.searchParams.get("filtering") ?? "")).toEqual([
+      { field: "ad.effective_status", operator: "IN", value: ["ACTIVE"] },
+    ]);
+    expect(url.searchParams.get("limit")).toBe("50");
+  });
 });
