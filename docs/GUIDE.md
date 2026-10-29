@@ -8,7 +8,7 @@ This guide walks through setting up and using each of the three messaging channe
 - [Facebook Messenger](#2-facebook-messenger)
 - [Instagram Direct Messaging](#3-instagram-direct-messaging)
 
-All three share the same installation and the same underlying HTTP client (`xior`). TypeScript types are bundled — no `@types/…` package needed.
+All three share the same installation and the same underlying HTTP client (native `fetch`). TypeScript types are bundled — no `@types/…` package needed.
 
 ---
 
@@ -16,10 +16,10 @@ All three share the same installation and the same underlying HTTP client (`xior
 
 ```bash
 # npm
-npm install whatsapp-business-sdk
+npm install @programytecnologia/whatsapp-business-sdk
 
 # pnpm
-pnpm add whatsapp-business-sdk
+pnpm add @programytecnologia/whatsapp-business-sdk
 ```
 
 ---
@@ -38,7 +38,7 @@ pnpm add whatsapp-business-sdk
 ### 1.1 — Client setup
 
 ```ts
-import { WABAClient } from "whatsapp-business-sdk";
+import { WABAClient } from "@programytecnologia/whatsapp-business-sdk";
 
 const client = new WABAClient({
 	apiToken: process.env.WA_TOKEN!,
@@ -380,7 +380,7 @@ await client.initiateCall({
 
 ```ts
 import express from "express";
-import { WebhookClient } from "whatsapp-business-sdk";
+import { WebhookClient } from "@programytecnologia/whatsapp-business-sdk";
 
 const webhookClient = new WebhookClient({
 	token: process.env.WA_WEBHOOK_TOKEN!,
@@ -460,7 +460,7 @@ webhookClient.initWebhook({
 
 ```ts
 import express, { json } from "express";
-import { WebhookClient, captureRawBody } from "whatsapp-business-sdk";
+import { WebhookClient, captureRawBody } from "@programytecnologia/whatsapp-business-sdk";
 
 const app = express();
 // Use captureRawBody so signature verification has access to the raw body
@@ -593,7 +593,7 @@ If your business has **linked business portfolios**, you can enable parent BSUID
 ### 2.1 — Client setup
 
 ```ts
-import { MessengerClient } from "whatsapp-business-sdk";
+import { MessengerClient } from "@programytecnologia/whatsapp-business-sdk";
 
 const client = new MessengerClient({
 	apiToken: process.env.PAGE_ACCESS_TOKEN!,
@@ -826,7 +826,7 @@ const { data: apps } = await client.getSecondaryReceivers();
 ### 2.9 — Webhook listener
 
 ```ts
-import { MessengerWebhookClient } from "whatsapp-business-sdk";
+import { MessengerWebhookClient } from "@programytecnologia/whatsapp-business-sdk";
 
 const webhook = new MessengerWebhookClient({
 	token: process.env.MESSENGER_WEBHOOK_TOKEN!,
@@ -918,7 +918,7 @@ webhook.initWebhook({
 ### 3.1 — Client setup
 
 ```ts
-import { InstagramClient } from "whatsapp-business-sdk";
+import { InstagramClient } from "@programytecnologia/whatsapp-business-sdk";
 
 const client = new InstagramClient({
 	apiToken: process.env.PAGE_ACCESS_TOKEN!,
@@ -1018,7 +1018,7 @@ const { data } = await client.getProfile(["ice_breakers"]);
 ### 3.6 — Webhook listener
 
 ```ts
-import { InstagramWebhookClient } from "whatsapp-business-sdk";
+import { InstagramWebhookClient } from "@programytecnologia/whatsapp-business-sdk";
 
 const webhook = new InstagramWebhookClient({
 	token: process.env.IG_WEBHOOK_TOKEN!,
@@ -1094,7 +1094,7 @@ When you manage Express yourself you need to capture the raw body **before** JSO
 
 ```ts
 import express, { json } from "express";
-import { MessengerWebhookClient, captureRawBody } from "whatsapp-business-sdk";
+import { MessengerWebhookClient, captureRawBody } from "@programytecnologia/whatsapp-business-sdk";
 
 const app = express();
 // captureRawBody must be registered BEFORE any other body-parser
@@ -1130,7 +1130,7 @@ import {
 	InstagramClient,
 	InstagramWebhookClient,
 	captureRawBody,
-} from "whatsapp-business-sdk";
+} from "@programytecnologia/whatsapp-business-sdk";
 
 const app = express();
 app.use(json({ verify: captureRawBody }));

@@ -2,7 +2,7 @@
 
 Node.js SDK for the **WhatsApp Business Cloud API**, **Facebook Messenger**, and **Instagram Direct Messaging** — fully typed, tested, and documented.
 
-Built with [`xior`](https://github.com/suhaotian/xior) for edge, Bun, and Deno compatibility. TypeScript types are bundled — no `@types/…` package needed.
+Built on the native `fetch` API for Node.js. TypeScript types are bundled — no `@types/…` package needed.
 
 ## Installation
 
@@ -95,7 +95,7 @@ import { InstagramClient } from "@programytecnologia/whatsapp-business-sdk";
 
 const client = new InstagramClient({
 	apiToken: process.env.PAGE_ACCESS_TOKEN!,
-	pageId: process.env.PAGE_ID!,
+	igUserId: process.env.IG_USER_ID!,
 });
 
 await client.sendText("USER_IGSID", "Hello from Instagram!");
