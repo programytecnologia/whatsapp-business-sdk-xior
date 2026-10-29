@@ -7,28 +7,39 @@ import type {
   GetMessengerProfileResponse,
   GetSecondaryReceiversResponse,
   GetThreadOwnerResponse,
-  MessageTag,
-  MessagingType,
+  IndicatorSenderAction,
   MessengerAttachment,
   MessengerProfile,
   MessengerProfileFieldName,
+  MessengerSendOptions,
   MessengerSendPayload,
   MessengerSendResponse,
+  MessengerWebhookField,
   Persona,
   QuickReply,
-  SenderAction,
+  SubscribedAppsResponse,
   UserProfile,
   UserProfileField,
 } from "./types/messenger";
 import type { DefaultMessengerErrorAPI } from "./types/messenger/error";
+import { assertGraphNodeId, graphApiBaseUrl } from "./utils/graphApi";
 import { MessengerErrorHandler } from "./utils/messengerErrorHandler";
 import { createRestClient } from "./utils/restClient";
 
 interface MessengerClientArgs {
+  /** A Page access token, or a business integration system user token with access to the Page. */
   apiToken: string;
-  /** The Page ID. Stored for reference; most endpoints use `me/` with a page access token. */
+  /** The Page ID. Every Page endpoint is called on it rather than on `me/`. */
   pageId: string;
+  /** Graph API version, e.g. `v26.0`. Defaults to `DEFAULT_GRAPH_API_VERSION`. */
+  graphApiVersion?: string;
 }
+
+const sendOptionFields = (options?: MessengerSendOptions) => ({
+  ...(options?.messagingType && { messaging_type: options.messagingType }),
+  ...(options?.tag && { tag: options.tag, messaging_type: "MESSAGE_TAG" as const }),
+  ...(options?.replyTo && { reply_to: { mid: options.replyTo } }),
+});
 
 /**
  * Connector for the Messenger Platform Send API and related endpoints.
@@ -39,11 +50,11 @@ export class MessengerClient {
   restClient: ReturnType<typeof createRestClient>;
   pageId: string;
 
-  constructor({ apiToken, pageId }: MessengerClientArgs) {
-    this.pageId = pageId;
+  constructor({ apiToken, pageId, graphApiVersion }: MessengerClientArgs) {
+    this.pageId = assertGraphNodeId(pageId, "pageId");
     this.restClient = createRestClient({
       apiToken,
-      baseURL: "https://graph.facebook.com/v25.0",
+      baseURL: graphApiBaseUrl(graphApiVersion),
       errorHandler: (error) =>
         MessengerErrorHandler((error?.response?.data || error) as DefaultMessengerErrorAPI),
     });
@@ -54,38 +65,74 @@ export class MessengerClient {
   // ---------------------------------------------------------------------------
 
   send(payload: MessengerSendPayload) {
-    return this.restClient.post<MessengerSendResponse>("me/messages", payload);
+    return this.restClient.post<MessengerSendResponse>(`${this.pageId}/messages`, payload);
   }
 
-  sendText(
-    recipientId: string,
-    text: string,
-    options?: { messagingType?: MessagingType; tag?: MessageTag },
-  ) {
+  /**
+   * Send a text message. `messaging_type` defaults to `RESPONSE`; passing a
+   * `tag` switches it to `MESSAGE_TAG`.
+   */
+  sendText(recipientId: string, text: string, options?: MessengerSendOptions) {
     return this.send({
       recipient: { id: recipientId },
       message: { text },
-      messaging_type: options?.messagingType || "RESPONSE",
-      tag: options?.tag,
+      messaging_type: "RESPONSE",
+      ...sendOptionFields(options),
     });
   }
 
-  sendAttachment(recipientId: string, attachment: MessengerAttachment) {
+  sendAttachment(
+    recipientId: string,
+    attachment: MessengerAttachment,
+    options?: MessengerSendOptions,
+  ) {
     return this.send({
       recipient: { id: recipientId },
       message: { attachment },
+      messaging_type: "RESPONSE",
+      ...sendOptionFields(options),
     });
   }
 
-  sendQuickReplies(recipientId: string, text: string, quick_replies: QuickReply[]) {
+  /** Up to 13 quick replies; titles are cut by Messenger at 20 characters. */
+  sendQuickReplies(
+    recipientId: string,
+    text: string,
+    quick_replies: QuickReply[],
+    options?: MessengerSendOptions,
+  ) {
     return this.send({
       recipient: { id: recipientId },
       message: { text, quick_replies },
+      messaging_type: "RESPONSE",
+      ...sendOptionFields(options),
     });
   }
 
-  sendSenderAction(recipientId: string, sender_action: SenderAction) {
+  /** Typing on/off or mark seen. Sender actions only carry the recipient. */
+  sendSenderAction(recipientId: string, sender_action: IndicatorSenderAction) {
     return this.send({ recipient: { id: recipientId }, sender_action });
+  }
+
+  /**
+   * React to a message of the thread, or change an earlier reaction.
+   *
+   * Documentation: https://developers.facebook.com/documentation/business-messaging/messenger-platform/send-messages/sender-actions
+   */
+  sendReaction(recipientId: string, messageId: string, reaction: string) {
+    return this.send({
+      recipient: { id: recipientId },
+      sender_action: "react",
+      payload: { message_id: messageId, reaction },
+    });
+  }
+
+  removeReaction(recipientId: string, messageId: string) {
+    return this.send({
+      recipient: { id: recipientId },
+      sender_action: "unreact",
+      payload: { message_id: messageId },
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -93,20 +140,28 @@ export class MessengerClient {
   // ---------------------------------------------------------------------------
 
   getProfile(fields: MessengerProfileFieldName[]) {
-    return this.restClient.get<GetMessengerProfileResponse>("me/messenger_profile", undefined, {
-      params: { fields: fields.join(",") },
-    });
+    return this.restClient.get<GetMessengerProfileResponse>(
+      `${this.pageId}/messenger_profile`,
+      undefined,
+      {
+        params: { fields: fields.join(",") },
+      },
+    );
   }
 
   setProfile(payload: Partial<MessengerProfile>) {
-    return this.restClient.post<{ result: string }>("me/messenger_profile", payload);
+    return this.restClient.post<{ result: string }>(`${this.pageId}/messenger_profile`, payload);
   }
 
   deleteProfile(fields: MessengerProfileFieldName[]) {
     // Graph API requires fields in the JSON body, not query params
-    return this.restClient.delete<{ result: string }>("me/messenger_profile", undefined, {
-      data: { fields },
-    });
+    return this.restClient.delete<{ result: string }>(
+      `${this.pageId}/messenger_profile`,
+      undefined,
+      {
+        data: { fields },
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -114,7 +169,7 @@ export class MessengerClient {
   // ---------------------------------------------------------------------------
 
   passThreadControl(recipientId: string, targetAppId: string, metadata?: string) {
-    return this.restClient.post<{ success: boolean }>("me/pass_thread_control", {
+    return this.restClient.post<{ success: boolean }>(`${this.pageId}/pass_thread_control`, {
       recipient: { id: recipientId },
       target_app_id: targetAppId,
       ...(metadata !== undefined && { metadata }),
@@ -122,36 +177,43 @@ export class MessengerClient {
   }
 
   takeThreadControl(recipientId: string, metadata?: string) {
-    return this.restClient.post<{ success: boolean }>("me/take_thread_control", {
+    return this.restClient.post<{ success: boolean }>(`${this.pageId}/take_thread_control`, {
       recipient: { id: recipientId },
       ...(metadata !== undefined && { metadata }),
     });
   }
 
   requestThreadControl(recipientId: string, metadata?: string) {
-    return this.restClient.post<{ success: boolean }>("me/request_thread_control", {
+    return this.restClient.post<{ success: boolean }>(`${this.pageId}/request_thread_control`, {
       recipient: { id: recipientId },
       ...(metadata !== undefined && { metadata }),
     });
   }
 
   getThreadOwner(recipientId: string) {
-    return this.restClient.get<GetThreadOwnerResponse>("me/thread_owner", undefined, {
+    return this.restClient.get<GetThreadOwnerResponse>(`${this.pageId}/thread_owner`, undefined, {
       params: { recipient_id: recipientId },
     });
   }
 
   getSecondaryReceivers() {
-    return this.restClient.get<GetSecondaryReceiversResponse>("me/secondary_receivers", undefined, {
-      params: { fields: "id,name" },
-    });
+    return this.restClient.get<GetSecondaryReceiversResponse>(
+      `${this.pageId}/secondary_receivers`,
+      undefined,
+      {
+        params: { fields: "id,name" },
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------
   // One-Time Notification (OTN)
   // ---------------------------------------------------------------------------
 
-  /** Send an OTN opt-in request template to a user. */
+  /**
+   * Send an OTN opt-in request template to a user.
+   * @deprecated One-Time Notification is retired; use Marketing Messages.
+   */
   sendOtnRequest(recipientId: string, title: string, payload: string) {
     return this.send({
       recipient: { id: recipientId },
@@ -164,9 +226,12 @@ export class MessengerClient {
     });
   }
 
-  /** Send the one-time follow-up message using the token received via optin webhook. */
+  /**
+   * Send the one-time follow-up message using the token received via optin webhook.
+   * @deprecated One-Time Notification is retired; use Marketing Messages.
+   */
   sendOtnMessage(otnToken: string, text: string) {
-    return this.restClient.post<MessengerSendResponse>("me/messages", {
+    return this.restClient.post<MessengerSendResponse>(`${this.pageId}/messages`, {
       recipient: { one_time_notif_token: otnToken },
       message: { text },
     });
@@ -183,7 +248,7 @@ export class MessengerClient {
    * Documentation: https://developers.facebook.com/docs/messenger-platform/send-api-reference/attachment-upload
    */
   uploadAttachment(attachment: FileAttachment) {
-    return this.restClient.post<AttachmentUploadResponse>("me/message_attachments", {
+    return this.restClient.post<AttachmentUploadResponse>(`${this.pageId}/message_attachments`, {
       message: { attachment },
     });
   }
@@ -199,17 +264,17 @@ export class MessengerClient {
    * Documentation: https://developers.facebook.com/docs/messenger-platform/send-api-reference/persona
    */
   createPersona(payload: CreatePersonaPayload) {
-    return this.restClient.post<CreatePersonaResponse>("me/personas", payload);
+    return this.restClient.post<CreatePersonaResponse>(`${this.pageId}/personas`, payload);
   }
 
   /** Retrieve a Persona's name and profile picture by ID. */
   getPersona(personaId: string) {
-    return this.restClient.get<Persona>(personaId);
+    return this.restClient.get<Persona>(assertGraphNodeId(personaId, "personaId"));
   }
 
   /** Delete a Persona by ID. */
   deletePersona(personaId: string) {
-    return this.restClient.delete<{ success: boolean }>(personaId);
+    return this.restClient.delete<{ success: boolean }>(assertGraphNodeId(personaId, "personaId"));
   }
 
   // ---------------------------------------------------------------------------
@@ -228,7 +293,7 @@ export class MessengerClient {
     psid: string,
     fields: UserProfileField[] = ["first_name", "last_name", "profile_pic", "locale", "timezone"],
   ) {
-    return this.restClient.get<UserProfile>(psid, undefined, {
+    return this.restClient.get<UserProfile>(assertGraphNodeId(psid, "psid"), undefined, {
       params: { fields: fields.join(",") },
     });
   }
@@ -247,9 +312,13 @@ export class MessengerClient {
   getConversations(params?: GetConversationsParams) {
     const { fields, ...rest } = params ?? {};
     const fieldsValue = Array.isArray(fields) ? fields.join(",") : fields;
-    return this.restClient.get<GetConversationsResponse>("me/conversations", undefined, {
-      params: { ...(fieldsValue ? { fields: fieldsValue } : {}), ...rest },
-    });
+    return this.restClient.get<GetConversationsResponse>(
+      `${this.pageId}/conversations`,
+      undefined,
+      {
+        params: { ...(fieldsValue ? { fields: fieldsValue } : {}), ...rest },
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -272,5 +341,33 @@ export class MessengerClient {
       recipient,
       message: { text },
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Webhook subscription
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Subscribe this app to the Page's webhooks. Needs `pages_manage_metadata`
+   * and a token that can act on the Page. Meta unsubscribes a Page after an
+   * hour of failed deliveries, so call it again from health checks.
+   *
+   * Documentation: https://developers.facebook.com/documentation/business-messaging/messenger-platform/webhooks
+   */
+  subscribeApp(fields: MessengerWebhookField[]) {
+    if (fields.length === 0) throw new Error("subscribeApp needs at least one field");
+    return this.restClient.post<{ success: boolean }>(`${this.pageId}/subscribed_apps`, undefined, {
+      params: { subscribed_fields: fields },
+    });
+  }
+
+  /** Apps subscribed to the Page and the fields each one receives. */
+  getSubscribedApps() {
+    return this.restClient.get<SubscribedAppsResponse>(`${this.pageId}/subscribed_apps`);
+  }
+
+  /** Remove this app's subscription to the Page. */
+  unsubscribeApp() {
+    return this.restClient.delete<{ success: boolean }>(`${this.pageId}/subscribed_apps`);
   }
 }

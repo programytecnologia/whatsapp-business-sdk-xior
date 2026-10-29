@@ -1,3 +1,15 @@
+## [Unreleased]
+
+### Messenger & Instagram channels
+
+* All clients take a `graphApiVersion` option (default `DEFAULT_GRAPH_API_VERSION`, `v25.0`). Versions and node ids that would change the request path are refused.
+* `MessengerClient` calls every Page endpoint on `{pageId}/...` instead of `me/...`, so a business integration system user token works as well as a Page token.
+* Messenger and Instagram: `sendReaction` / `removeReaction`, `replyTo` and `tag` send options (a tag sets `messaging_type: MESSAGE_TAG`), `subscribeApp` / `getSubscribedApps` / `unsubscribeApp`.
+* Instagram: `sendQuickReplies`, `sendSenderAction`, `getUserProfile(igsid)`. `IGMessageTag` is narrowed to `HUMAN_AGENT`, the only tag Instagram accepts.
+* Webhook types: ad referral `ads_context_data`, echo `app_id`, `message_edit`, policy enforcement, `standby` entries, Messenger `sticker` and Instagram `ig_post` attachments, Marketing Messages opt-in tokens.
+* `MESSENGER_ERROR_SUBCODES`, `isOutsideMessagingWindowError` and `isRecipientUnavailableError`. `MessengerErrorHandler` keeps Meta's message after the generic label.
+* Deprecated: One-Time Notification helpers, and the `ACCOUNT_UPDATE`, `CONFIRMED_EVENT_UPDATE` and `POST_PURCHASE_UPDATE` tags (retired by Meta on 2026-04-27).
+
 ## [2.2.0] - 2026-05-26
 
 ### BSUID & usernames

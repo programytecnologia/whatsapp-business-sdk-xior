@@ -50,24 +50,24 @@ describe("MessengerClient", () => {
   // ── Send API ────────────────────────────────────────────────────────────────
 
   describe("send()", () => {
-    it("calls POST me/messages with the full payload", async () => {
+    it("calls POST {pageId}/messages with the full payload", async () => {
       const payload = {
         recipient: { id: "user-1" },
         message: { text: "Hello!" },
         messaging_type: "RESPONSE" as const,
       };
       await client.send(payload);
-      expect(client.restClient.post).toHaveBeenCalledWith("me/messages", payload);
+      expect(client.restClient.post).toHaveBeenCalledWith("page-123/messages", payload);
     });
   });
 
   describe("sendText()", () => {
-    it("calls POST me/messages with text and defaults to RESPONSE messaging type", async () => {
+    it("calls POST {pageId}/messages with text and defaults to RESPONSE messaging type", async () => {
       await client.sendText("user-1", "Hi there");
 
       const endpoint = callEndpoint(client.restClient.post as jest.Mock);
       const body = callBody(client.restClient.post as jest.Mock);
-      expect(endpoint).toBe("me/messages");
+      expect(endpoint).toBe("page-123/messages");
       expect(body.recipient).toEqual({ id: "user-1" });
       expect(body.message).toEqual({ text: "Hi there" });
       expect(body.messaging_type).toBe("RESPONSE");
@@ -86,7 +86,7 @@ describe("MessengerClient", () => {
   });
 
   describe("sendAttachment()", () => {
-    it("calls POST me/messages with an image attachment", async () => {
+    it("calls POST {pageId}/messages with an image attachment", async () => {
       await client.sendAttachment("user-1", {
         type: "image",
         payload: { url: "https://example.com/img.jpg" },
@@ -96,7 +96,7 @@ describe("MessengerClient", () => {
       const body = callBody<{ message: { attachment: { type: string } } }>(
         client.restClient.post as jest.Mock,
       );
-      expect(endpoint).toBe("me/messages");
+      expect(endpoint).toBe("page-123/messages");
       expect(body.message.attachment.type).toBe("image");
     });
   });
@@ -130,44 +130,48 @@ describe("MessengerClient", () => {
   // ── Messenger Profile API ───────────────────────────────────────────────────
 
   describe("getProfile()", () => {
-    it("calls GET me/messenger_profile with joined fields param", async () => {
+    it("calls GET {pageId}/messenger_profile with joined fields param", async () => {
       await client.getProfile(["get_started", "greeting"]);
 
       const endpoint = callEndpoint(client.restClient.get as jest.Mock);
       const config = callConfig(client.restClient.get as jest.Mock);
-      expect(endpoint).toBe("me/messenger_profile");
+      expect(endpoint).toBe("page-123/messenger_profile");
       expect(config.params?.fields).toBe("get_started,greeting");
     });
   });
 
   describe("setProfile()", () => {
-    it("calls POST me/messenger_profile with payload", async () => {
+    it("calls POST {pageId}/messenger_profile with payload", async () => {
       const payload = { get_started: { payload: "GET_STARTED" } };
       await client.setProfile(payload);
 
-      expect(client.restClient.post).toHaveBeenCalledWith("me/messenger_profile", payload);
+      expect(client.restClient.post).toHaveBeenCalledWith("page-123/messenger_profile", payload);
     });
   });
 
   describe("deleteProfile()", () => {
-    it("calls DELETE me/messenger_profile with fields in the request body", async () => {
+    it("calls DELETE {pageId}/messenger_profile with fields in the request body", async () => {
       await client.deleteProfile(["get_started"]);
 
-      expect(client.restClient.delete).toHaveBeenCalledWith("me/messenger_profile", undefined, {
-        data: { fields: ["get_started"] },
-      });
+      expect(client.restClient.delete).toHaveBeenCalledWith(
+        "page-123/messenger_profile",
+        undefined,
+        {
+          data: { fields: ["get_started"] },
+        },
+      );
     });
   });
 
   // ── Handover Protocol ───────────────────────────────────────────────────────
 
   describe("passThreadControl()", () => {
-    it("calls POST me/pass_thread_control with recipient and target_app_id", async () => {
+    it("calls POST {pageId}/pass_thread_control with recipient and target_app_id", async () => {
       await client.passThreadControl("user-1", "app-id-999");
 
       const endpoint = callEndpoint(client.restClient.post as jest.Mock);
       const body = callBody(client.restClient.post as jest.Mock);
-      expect(endpoint).toBe("me/pass_thread_control");
+      expect(endpoint).toBe("page-123/pass_thread_control");
       expect(body.recipient).toEqual({ id: "user-1" });
       expect(body.target_app_id).toBe("app-id-999");
     });
@@ -188,41 +192,41 @@ describe("MessengerClient", () => {
   });
 
   describe("takeThreadControl()", () => {
-    it("calls POST me/take_thread_control", async () => {
+    it("calls POST {pageId}/take_thread_control", async () => {
       await client.takeThreadControl("user-1");
 
       const endpoint = callEndpoint(client.restClient.post as jest.Mock);
-      expect(endpoint).toBe("me/take_thread_control");
+      expect(endpoint).toBe("page-123/take_thread_control");
     });
   });
 
   describe("requestThreadControl()", () => {
-    it("calls POST me/request_thread_control", async () => {
+    it("calls POST {pageId}/request_thread_control", async () => {
       await client.requestThreadControl("user-1");
 
       const endpoint = callEndpoint(client.restClient.post as jest.Mock);
-      expect(endpoint).toBe("me/request_thread_control");
+      expect(endpoint).toBe("page-123/request_thread_control");
     });
   });
 
   describe("getThreadOwner()", () => {
-    it("calls GET me/thread_owner with recipient_id param", async () => {
+    it("calls GET {pageId}/thread_owner with recipient_id param", async () => {
       await client.getThreadOwner("user-1");
 
       const endpoint = callEndpoint(client.restClient.get as jest.Mock);
       const config = callConfig(client.restClient.get as jest.Mock);
-      expect(endpoint).toBe("me/thread_owner");
+      expect(endpoint).toBe("page-123/thread_owner");
       expect(config.params?.recipient_id).toBe("user-1");
     });
   });
 
   describe("getSecondaryReceivers()", () => {
-    it("calls GET me/secondary_receivers with id,name fields", async () => {
+    it("calls GET {pageId}/secondary_receivers with id,name fields", async () => {
       await client.getSecondaryReceivers();
 
       const endpoint = callEndpoint(client.restClient.get as jest.Mock);
       const config = callConfig(client.restClient.get as jest.Mock);
-      expect(endpoint).toBe("me/secondary_receivers");
+      expect(endpoint).toBe("page-123/secondary_receivers");
       expect(config.params?.fields).toBe("id,name");
     });
   });
@@ -252,7 +256,7 @@ describe("MessengerClient", () => {
 
       const endpoint = callEndpoint(client.restClient.post as jest.Mock);
       const body = callBody(client.restClient.post as jest.Mock);
-      expect(endpoint).toBe("me/messages");
+      expect(endpoint).toBe("page-123/messages");
       expect(body.recipient).toEqual({ one_time_notif_token: "otn-token-xyz" });
       expect((body as Record<string, { text: string }>).message.text).toBe("Here is your update!");
     });
@@ -261,7 +265,7 @@ describe("MessengerClient", () => {
   // ── Attachment Upload API ────────────────────────────────────────────────────
 
   describe("uploadAttachment()", () => {
-    it("calls POST me/message_attachments with the attachment wrapped in a message envelope", async () => {
+    it("calls POST {pageId}/message_attachments with the attachment wrapped in a message envelope", async () => {
       await client.uploadAttachment({
         type: "image",
         payload: { url: "https://example.com/banner.jpg" },
@@ -271,7 +275,7 @@ describe("MessengerClient", () => {
       const body = callBody<{ message: { attachment: { type: string } } }>(
         client.restClient.post as jest.Mock,
       );
-      expect(endpoint).toBe("me/message_attachments");
+      expect(endpoint).toBe("page-123/message_attachments");
       expect(body.message.attachment.type).toBe("image");
     });
 
@@ -291,7 +295,7 @@ describe("MessengerClient", () => {
   // ── Persona API ───────────────────────────────────────────────────────────────
 
   describe("createPersona()", () => {
-    it("calls POST me/personas with name and profile_picture_url", async () => {
+    it("calls POST {pageId}/personas with name and profile_picture_url", async () => {
       await client.createPersona({
         name: "Order Bot",
         profile_picture_url: "https://example.com/bot.jpg",
@@ -299,7 +303,7 @@ describe("MessengerClient", () => {
 
       const endpoint = callEndpoint(client.restClient.post as jest.Mock);
       const body = callBody(client.restClient.post as jest.Mock);
-      expect(endpoint).toBe("me/personas");
+      expect(endpoint).toBe("page-123/personas");
       expect(body.name).toBe("Order Bot");
       expect(body.profile_picture_url).toBe("https://example.com/bot.jpg");
     });
@@ -348,12 +352,12 @@ describe("MessengerClient", () => {
   // ── Conversations API ───────────────────────────────────────────────────────
 
   describe("getConversations()", () => {
-    it("calls GET me/conversations with no extra params by default", async () => {
+    it("calls GET {pageId}/conversations with no extra params by default", async () => {
       await client.getConversations();
 
       const endpoint = callEndpoint(client.restClient.get as jest.Mock);
       const config = callConfig(client.restClient.get as jest.Mock);
-      expect(endpoint).toBe("me/conversations");
+      expect(endpoint).toBe("page-123/conversations");
       expect(config.params).toEqual({});
     });
 

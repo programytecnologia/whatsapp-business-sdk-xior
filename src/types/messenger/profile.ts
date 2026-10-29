@@ -63,6 +63,8 @@ export type GetMessengerProfileResponse = {
 // Reference: https://developers.facebook.com/docs/messenger-platform/identity/user-profile
 
 export interface UserProfile {
+  /** Needs the Business Asset User Profile Access feature, like the names and photo. */
+  name?: string;
   first_name?: string;
   last_name?: string;
   profile_pic?: string;
@@ -74,6 +76,7 @@ export interface UserProfile {
 }
 
 export type UserProfileField =
+  | "name"
   | "first_name"
   | "last_name"
   | "profile_pic"

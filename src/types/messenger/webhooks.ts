@@ -1,8 +1,26 @@
 // ----- Incoming message object -----
 
+/**
+ * Attachment kinds a Page receives. `sticker` replaces stickers delivered as
+ * `image` (with `sticker_id`) from 2026-08-30. Unknown kinds stay `string`.
+ */
+export type MessengerWebhookAttachmentType =
+  | "image"
+  | "video"
+  | "audio"
+  | "file"
+  | "sticker"
+  | "location"
+  | "fallback"
+  | "template"
+  | "reel"
+  | "ig_reel"
+  | (string & {});
+
 export type MessengerWebhookAttachment = {
-  type: string;
+  type: MessengerWebhookAttachmentType;
   payload: {
+    /** CDN URL. It expires; download the file when the webhook arrives. */
     url?: string;
     sticker_id?: number;
     title?: string;
@@ -16,6 +34,11 @@ export type MessengerWebhookMessage = {
   attachments?: MessengerWebhookAttachment[];
   quick_reply?: { payload: string };
   reply_to?: { mid: string };
+  /** Set with `is_echo`: the app that sent the message (absent for the Page inbox). */
+  app_id?: number | string;
+  metadata?: string;
+  /** The ad or link that opened the thread, on the first message after it. */
+  referral?: MessengerReferral;
   is_echo?: boolean;
   is_deleted?: boolean;
   is_unsupported?: boolean;
@@ -29,11 +52,24 @@ export type MessengerPostback = {
   referral?: { ref: string; source: string; type: string };
 };
 
+/** What a Click-to-Messenger ad sends with the first message. */
+export type AdsContextData = {
+  ad_title?: string;
+  photo_url?: string;
+  video_url?: string;
+  post_id?: string;
+  product_id?: string;
+  flow_id?: string;
+};
+
 export type MessengerReferral = {
-  ref: string;
+  ref?: string;
+  /** `ADS`, `SHORTLINK`, `CUSTOMER_CHAT_PLUGIN`, ... */
   source: string;
   type: string;
   ad_id?: string;
+  ads_context_data?: AdsContextData;
+  referer_uri?: string;
 };
 
 export type MessengerOptin = {
@@ -41,7 +77,11 @@ export type MessengerOptin = {
   user_ref?: string;
   type: string;
   payload?: string;
+  /** @deprecated One-Time Notification is retired. */
   one_time_notif_token?: string;
+  /** Marketing Messages subscription token. */
+  notification_messages_token?: string;
+  notification_messages_status?: "STOP_NOTIFICATIONS" | "RESUME_NOTIFICATIONS";
 };
 
 export type MessengerRead = { watermark: number };
@@ -52,6 +92,19 @@ export type MessengerReaction = {
   action: "react" | "unreact";
   reaction?: string;
   emoji?: string;
+};
+
+/** An edited message: `text` is the new text. */
+export type MessengerMessageEdit = {
+  mid: string;
+  text?: string;
+  num_edit?: number;
+};
+
+/** Meta warned about, or blocked, the app for a policy violation. */
+export type MessengerPolicyEnforcement = {
+  action: "warning" | "block" | "unblock" | (string & {});
+  reason?: string;
 };
 
 export type MessengerHandover = {
@@ -78,6 +131,9 @@ export type MessengerMessaging = {
   read?: MessengerRead;
   delivery?: MessengerDelivery;
   reaction?: MessengerReaction;
+  message_edit?: MessengerMessageEdit;
+  "policy-enforcement"?: MessengerPolicyEnforcement;
+  policy_enforcement?: MessengerPolicyEnforcement;
   pass_thread_control?: MessengerHandover;
   take_thread_control?: MessengerHandover;
   request_thread_control?: MessengerThreadControlRequest;
@@ -86,7 +142,10 @@ export type MessengerMessaging = {
 export type MessengerEntry = {
   id: string;
   time: number;
-  messaging: MessengerMessaging[];
+  /** Absent when the entry only carries `standby` or `changes`. */
+  messaging?: MessengerMessaging[];
+  /** Events for threads another app controls (Conversation Routing). */
+  standby?: MessengerMessaging[];
 };
 
 export type MessengerWebhook = {

@@ -63,6 +63,7 @@ import type {
   VerifyPhoneNumberArgs,
 } from "./types";
 import { WABAErrorHandler } from "./utils/errorHandler";
+import { graphApiBaseUrl } from "./utils/graphApi";
 import { resolveRecipient } from "./utils/identifiers";
 import { createRestClient } from "./utils/restClient";
 
@@ -70,6 +71,8 @@ interface WABAClientArgs {
   apiToken: string;
   phoneId: string;
   accountId: string;
+  /** Graph API version, e.g. `v26.0`. Defaults to `DEFAULT_GRAPH_API_VERSION`. */
+  graphApiVersion?: string;
 }
 
 type OutboundMessagePayload = Omit<Message, "messaging_product"> &
@@ -103,12 +106,12 @@ export class WABAClient {
   phoneId: string;
   accountId: string;
 
-  constructor({ apiToken, phoneId, accountId }: WABAClientArgs) {
+  constructor({ apiToken, phoneId, accountId, graphApiVersion }: WABAClientArgs) {
     this.phoneId = phoneId;
     this.accountId = accountId;
     this.restClient = createRestClient({
       apiToken,
-      baseURL: "https://graph.facebook.com/v25.0",
+      baseURL: graphApiBaseUrl(graphApiVersion),
       errorHandler: (error) =>
         WABAErrorHandler((error?.response?.data || error) as DefaultWABAErrorAPI),
     });

@@ -11,15 +11,46 @@ export type MessengerRecipient =
 
 export type MessagingType = "RESPONSE" | "UPDATE" | "MESSAGE_TAG";
 
-export type MessageTag =
+/**
+ * Message tags that are still accepted.
+ *
+ * - `HUMAN_AGENT`: a person replies up to 7 days after the user's last message.
+ *   Needs the Human Agent feature; automated messages must not use it.
+ * - `CUSTOMER_FEEDBACK`: only with the customer feedback template.
+ *
+ * Documentation: https://developers.facebook.com/docs/messenger-platform/reference/send-api/
+ */
+export type ActiveMessageTag = "HUMAN_AGENT" | "CUSTOMER_FEEDBACK";
+
+/**
+ * Tags Meta retired on 2026-04-27; sends that use them fail with error 100.
+ * Use Utility Templates or the Marketing Messages API instead.
+ */
+export type DeprecatedMessageTag =
   | "CONFIRMED_EVENT_UPDATE"
   | "POST_PURCHASE_UPDATE"
-  | "ACCOUNT_UPDATE"
-  | "HUMAN_AGENT";
+  | "ACCOUNT_UPDATE";
+
+export type MessageTag = ActiveMessageTag | DeprecatedMessageTag;
 
 // ----- Sender actions -----
 
-export type SenderAction = "typing_on" | "typing_off" | "mark_seen";
+/** Typing and read indicators; send them without a `message`. */
+export type IndicatorSenderAction = "typing_on" | "typing_off" | "mark_seen";
+
+/** Reaction actions; they need `payload.message_id`. */
+export type ReactionSenderAction = "react" | "unreact";
+
+export type SenderAction = IndicatorSenderAction | ReactionSenderAction;
+
+export type ReactionPayload = {
+  message_id: string;
+  /** The emoji. Omit it with `unreact`. */
+  reaction?: string;
+};
+
+/** Quote an earlier message of the thread (the user's or the Page's). */
+export type ReplyTo = { mid: string };
 
 // ----- Quick replies -----
 
@@ -176,6 +207,7 @@ export type ReceiptTemplatePayload = {
   sharable?: boolean;
 };
 
+/** @deprecated One-Time Notification is retired; use Marketing Messages. */
 export type OTNTemplatePayload = {
   template_type: "one_time_notif_req";
   title: string;
@@ -216,6 +248,9 @@ export type MessengerSendPayload = {
   recipient: MessengerRecipient;
   message?: MessengerMessage;
   sender_action?: SenderAction;
+  /** Required with the `react` / `unreact` sender actions. */
+  payload?: ReactionPayload;
+  reply_to?: ReplyTo;
   messaging_type?: MessagingType;
   tag?: MessageTag;
   notification_type?: "REGULAR" | "SILENT_PUSH" | "NO_PUSH";
@@ -234,3 +269,42 @@ export type AttachmentUploadResponse = {
   /** Reusable id — pass as `payload.attachment_id` in future sends to avoid re-uploading. */
   attachment_id: string;
 };
+
+// ----- Send options -----
+
+export type MessengerSendOptions = {
+  messagingType?: MessagingType;
+  tag?: MessageTag;
+  replyTo?: string;
+};
+
+// ----- Webhook subscription (Page subscribed_apps) -----
+
+/** Page webhook fields an app can subscribe a Page to for messaging. */
+export type MessengerWebhookField =
+  | "messages"
+  | "message_deliveries"
+  | "message_echoes"
+  | "message_edits"
+  | "message_reactions"
+  | "message_reads"
+  | "messaging_account_linking"
+  | "messaging_handovers"
+  | "messaging_optins"
+  | "messaging_policy_enforcement"
+  | "messaging_postbacks"
+  | "messaging_referrals"
+  | "messenger_template_status_update"
+  | "response_feedback"
+  | "standby"
+  | "leadgen"
+  | "feed";
+
+export type SubscribedApp = {
+  id: string;
+  name?: string;
+  link?: string;
+  subscribed_fields?: string[];
+};
+
+export type SubscribedAppsResponse = { data: SubscribedApp[] };

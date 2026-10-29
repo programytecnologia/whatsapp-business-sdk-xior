@@ -1,7 +1,26 @@
 // ----- Incoming message object -----
 
+/**
+ * Attachment kinds Instagram sends. `ig_post` replaced `share` in April 2026.
+ * Ephemeral media arrives without a URL.
+ */
+export type IGWebhookAttachmentType =
+  | "image"
+  | "video"
+  | "audio"
+  | "file"
+  | "story_mention"
+  | "ig_reel"
+  | "reel"
+  | "ig_post"
+  | "share"
+  | "like_heart"
+  | "fallback"
+  | "ephemeral"
+  | (string & {});
+
 export type IGWebhookAttachment = {
-  type: string;
+  type: IGWebhookAttachmentType;
   payload: {
     url?: string;
     title?: string;
@@ -19,6 +38,8 @@ export type IGWebhookMessage = {
   attachments?: IGWebhookAttachment[];
   reply_to?: { mid?: string; story?: { url: string; id: string } };
   quick_reply?: { payload: string };
+  /** The ad or link that opened the thread, on the first message after it. */
+  referral?: IGReferral;
   is_echo?: boolean;
   is_deleted?: boolean;
   is_unsupported?: boolean;
@@ -27,10 +48,25 @@ export type IGWebhookMessage = {
 // ----- Event fields -----
 
 export type IGReferral = {
-  ref: string;
+  ref?: string;
+  /** `ADS`, `SHORTLINK`, ... */
   source: string;
   type: string;
   ad_id?: string;
+  ads_context_data?: {
+    ad_title?: string;
+    photo_url?: string;
+    video_url?: string;
+    post_id?: string;
+    product_id?: string;
+  };
+};
+
+/** An edited message: `text` is the new text. */
+export type IGMessageEdit = {
+  mid: string;
+  text?: string;
+  num_edit?: number;
 };
 
 export type IGRead = {
@@ -62,12 +98,16 @@ export type IGMessaging = {
   read?: IGRead;
   reaction?: IGReaction;
   postback?: IGPostback;
+  message_edit?: IGMessageEdit;
 };
 
 export type IGEntry = {
   id: string;
   time: number;
-  messaging: IGMessaging[];
+  /** Absent when the entry only carries `standby` or `changes` (comments, mentions). */
+  messaging?: IGMessaging[];
+  /** Events for threads another app controls (Conversation Routing). */
+  standby?: IGMessaging[];
 };
 
 export type InstagramWebhook = {
