@@ -14,10 +14,24 @@ export type GetStarted = { payload: string };
 
 export type Greeting = { locale: string; text: string };
 
+/**
+ * Legacy, non-localized ice breaker.
+ * @deprecated Meta now takes ice breakers per locale; use `IceBreakersLocale`.
+ */
 export type IceBreaker = {
   call_to_action_title: string;
   call_to_action_payload: string;
 };
+
+/** A question shown when a user opens a new thread; tapping it sends `payload` as a postback. */
+export type IceBreakerQuestion = { question: string; payload: string };
+
+/**
+ * Ice breakers for one locale (`default` is required), up to 4 questions.
+ *
+ * Documentation: https://developers.facebook.com/docs/messenger-platform/discovery/ice-breakers
+ */
+export type IceBreakersLocale = { locale: string; call_to_actions: IceBreakerQuestion[] };
 
 export type PersistentMenuCallToAction =
   | {
@@ -48,7 +62,7 @@ export type NLPConfig = {
 export type MessengerProfile = {
   get_started?: GetStarted;
   greeting?: Greeting[];
-  ice_breakers?: IceBreaker[];
+  ice_breakers?: IceBreakersLocale[];
   persistent_menu?: PersistentMenuItem[];
   nlp_configs?: NLPConfig;
   whitelisted_domains?: string[];

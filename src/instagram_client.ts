@@ -1,9 +1,13 @@
 import type { GetConversationsParams, GetConversationsResponse } from "./types/conversations";
 import type {
   GetIGCommentsResponse,
+  GetIGMessagingProfileResponse,
   IGAttachment,
   IGAttachmentUploadResponse,
+  IGGenericElement,
   IGIndicatorSenderAction,
+  IGMessagingProfile,
+  IGPersistentMenuItem,
   IGPublicCommentReplyResponse,
   IGQuickReply,
   IGSendMessagePayload,
@@ -13,9 +17,16 @@ import type {
   IGUserProfileField,
   IGWebhookField,
 } from "./types/instagram";
-import type { SubscribedAppsResponse } from "./types/messenger";
+import type { IceBreakersLocale, SubscribedAppsResponse } from "./types/messenger";
 import type { DefaultMessengerErrorAPI } from "./types/messenger/error";
 import { assertGraphNodeId, graphApiBaseUrl } from "./utils/graphApi";
+import {
+  assertGenericElements,
+  assertIceBreakers,
+  assertPersistentMenu,
+  readIceBreakers,
+  readProfileList,
+} from "./utils/messagingProfile";
 import { MessengerErrorHandler } from "./utils/messengerErrorHandler";
 import { createRestClient } from "./utils/restClient";
 
@@ -30,6 +41,9 @@ interface InstagramClientArgs {
   /** Graph API version, e.g. `v26.0`. Defaults to `DEFAULT_GRAPH_API_VERSION`. */
   graphApiVersion?: string;
 }
+
+/** The messaging profile is shared with Messenger; this selects the Instagram one. */
+const PLATFORM = "instagram";
 
 const sendOptionFields = (options?: IGSendOptions) => ({
   ...(options?.messagingType && { messaging_type: options.messagingType }),
@@ -97,6 +111,25 @@ export class InstagramClient {
     return this.sendMessage({
       recipient: { id: recipientId },
       message: { text, quick_replies },
+      messaging_type: "RESPONSE",
+      ...sendOptionFields(options),
+    });
+  }
+
+  /**
+   * Send a generic template: one card, or a carousel of up to 10. Title and
+   * subtitle take up to 80 characters, each element up to 3 URL or postback
+   * buttons. Throws before the request when a limit is broken. Not shown on desktop.
+   *
+   * Documentation: https://developers.facebook.com/documentation/business-messaging/instagram-messaging/generic-template
+   */
+  sendGenericTemplate(recipientId: string, elements: IGGenericElement[], options?: IGSendOptions) {
+    assertGenericElements("sendGenericTemplate", elements, 80);
+    return this.sendMessage({
+      recipient: { id: recipientId },
+      message: {
+        attachment: { type: "template", payload: { template_type: "generic", elements } },
+      },
       messaging_type: "RESPONSE",
       ...sendOptionFields(options),
     });
@@ -193,19 +226,79 @@ export class InstagramClient {
   }
 
   // ---------------------------------------------------------------------------
-  // IG Messaging Profile (ice breakers, welcome message)
+  // IG Messaging Profile (ice breakers, persistent menu)
   // ---------------------------------------------------------------------------
+  // The `messenger_profile` edge serves Messenger too: every call carries
+  // `platform=instagram`, and goes to the account node rather than `me`.
 
   getProfile(fields: string[]) {
-    return this.restClient.get<{ data: Record<string, unknown>[] }>(
+    return this.restClient.get<GetIGMessagingProfileResponse>(
       `${this.igUserId}/messenger_profile`,
       undefined,
-      { params: { fields: fields.join(",") } },
+      { params: { fields: fields.join(","), platform: PLATFORM } },
     );
   }
 
-  setProfile(payload: Record<string, unknown>) {
-    return this.restClient.post<{ result: string }>(`${this.igUserId}/messenger_profile`, payload);
+  setProfile(payload: IGMessagingProfile) {
+    return this.restClient.post<{ result: string }>(
+      `${this.igUserId}/messenger_profile`,
+      { ...payload, platform: PLATFORM },
+      { params: { platform: PLATFORM } },
+    );
+  }
+
+  deleteProfile(fields: string[]) {
+    // Graph API requires fields in the JSON body, not query params
+    return this.restClient.delete<{ result: string }>(
+      `${this.igUserId}/messenger_profile`,
+      undefined,
+      { params: { platform: PLATFORM }, data: { fields } },
+    );
+  }
+
+  /** Ice breakers per locale, or `[]` when none are set. */
+  async getIceBreakers(): Promise<IceBreakersLocale[]> {
+    return readIceBreakers(await this.getProfile(["ice_breakers"]));
+  }
+
+  /**
+   * Replace the ice breakers: the questions shown when a user opens a new
+   * conversation (not on desktop). A `default` locale is required, with 1 to 4
+   * questions per locale. Tapping one sends a `messaging_postbacks` webhook.
+   *
+   * Documentation: https://developers.facebook.com/documentation/business-messaging/instagram-messaging/features/ice-breakers
+   */
+  setIceBreakers(iceBreakers: IceBreakersLocale[]) {
+    assertIceBreakers("setIceBreakers", iceBreakers);
+    return this.setProfile({ ice_breakers: iceBreakers });
+  }
+
+  deleteIceBreakers() {
+    return this.deleteProfile(["ice_breakers"]);
+  }
+
+  /** Persistent menu per locale, or `[]` when none is set. */
+  async getPersistentMenu(): Promise<IGPersistentMenuItem[]> {
+    return readProfileList<IGPersistentMenuItem>(
+      await this.getProfile(["persistent_menu"]),
+      "persistent_menu",
+    );
+  }
+
+  /**
+   * Replace the persistent menu. A `default` locale is required, with up to 20
+   * postback or URL items per locale. Open conversations only see a new menu
+   * after the inbox is refreshed.
+   *
+   * Documentation: https://developers.facebook.com/documentation/business-messaging/instagram-messaging/features/persistent-menu
+   */
+  setPersistentMenu(menu: IGPersistentMenuItem[]) {
+    assertPersistentMenu("setPersistentMenu", menu);
+    return this.setProfile({ persistent_menu: menu });
+  }
+
+  deletePersistentMenu() {
+    return this.deleteProfile(["persistent_menu"]);
   }
 
   // ---------------------------------------------------------------------------

@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Rich content & messaging profile
+
+* Messenger: `sendGenericTemplate` (with `imageAspectRatio`) and `sendButtonTemplate`; `getIceBreakers` / `setIceBreakers` / `deleteIceBreakers`, `getPersistentMenu` / `setPersistentMenu` / `deletePersistentMenu`, `getGetStarted` / `setGetStarted`.
+* Instagram: `sendGenericTemplate` and the same ice breaker and persistent menu helpers. `getProfile` / `setProfile` now send `platform=instagram` (query, and body on POST); new `deleteProfile`.
+* Limits are checked before the request and throw an `Error`: 1–10 template elements, 3 buttons each, 80-character Instagram title/subtitle, 640-character button template text, a `default` locale, 1–4 ice breaker questions, 20 menu items per locale.
+* Ice breakers use Meta's localized format (`IceBreakersLocale`, `IceBreakerQuestion`); `MessengerProfile.ice_breakers` changes type accordingly and the old `IceBreaker` type is deprecated.
+* New types: `IGUrlButton`, `IGPostbackButton`, `IGTemplateButton`, `IGGenericElement`, `IGGenericTemplatePayload`, `IGTemplateAttachment`, `IGPersistentMenuItem`, `IGMessagingProfile`, `GetIGMessagingProfileResponse`.
+
 ### Messenger & Instagram channels
 
 * All clients take a `graphApiVersion` option (default `DEFAULT_GRAPH_API_VERSION`, `v25.0`). Versions and node ids that would change the request path are refused.

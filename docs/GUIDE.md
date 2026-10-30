@@ -637,7 +637,30 @@ await client.sendAttachment("USER_PSID", {
 	payload: { url: "https://example.com/doc.pdf" },
 });
 
-// Generic template (carousel)
+// Generic template (carousel): 1–10 elements, up to 3 buttons each
+await client.sendGenericTemplate(
+	"USER_PSID",
+	[
+		{
+			title: "Product A",
+			subtitle: "Best seller",
+			image_url: "https://example.com/a.jpg",
+			buttons: [
+				{ type: "postback", title: "Buy now", payload: "BUY_A" },
+				{ type: "web_url", title: "Details", url: "https://example.com/a" },
+			],
+		},
+	],
+	{ imageAspectRatio: "square" },
+);
+
+// Button template: text up to 640 characters, 1–3 URL or postback buttons
+await client.sendButtonTemplate("USER_PSID", "What would you like to do?", [
+	{ type: "postback", title: "Track order", payload: "TRACK_ORDER" },
+	{ type: "web_url", title: "Visit site", url: "https://example.com" },
+]);
+
+// The same templates through sendAttachment()
 await client.sendAttachment("USER_PSID", {
 	type: "template",
 	payload: {
@@ -781,6 +804,30 @@ const { data } = await client.getProfile(["get_started", "greeting", "persistent
 
 // Remove fields
 await client.deleteProfile(["get_started", "persistent_menu"]);
+
+// Typed helpers. A "default" locale is required; the persistent menu only
+// shows once a Get Started button is set.
+await client.setGetStarted("GET_STARTED");
+await client.setPersistentMenu([
+	{
+		locale: "default",
+		call_to_actions: [{ type: "postback", title: "Talk to us", payload: "SUPPORT" }],
+	},
+]);
+await client.setIceBreakers([
+	{
+		locale: "default",
+		call_to_actions: [
+			{ question: "Where are you?", payload: "LOCATION" },
+			{ question: "Opening hours?", payload: "HOURS" },
+		], // up to 4 per locale
+	},
+]);
+const iceBreakers = await client.getIceBreakers(); // [] when unset
+const menu = await client.getPersistentMenu(); // [] when unset
+const getStarted = await client.getGetStarted(); // null when unset
+await client.deleteIceBreakers();
+await client.deletePersistentMenu();
 ```
 
 ### 2.7 — One-Time Notification (OTN)
@@ -956,6 +1003,21 @@ await client.sendAttachment("USER_IG_SCOPED_ID", {
 	payload: { url: "https://example.com/clip.mp4" },
 });
 
+// Generic template (carousel, not shown on desktop): 1–10 elements,
+// title/subtitle up to 80 characters, up to 3 URL or postback buttons each
+await client.sendGenericTemplate("USER_IG_SCOPED_ID", [
+	{
+		title: "Welcome!",
+		subtitle: "We have the right hat for everyone.",
+		image_url: "https://example.com/hat.jpg",
+		default_action: { type: "web_url", url: "https://example.com" },
+		buttons: [
+			{ type: "web_url", title: "View website", url: "https://example.com" },
+			{ type: "postback", title: "Start chatting", payload: "START" },
+		],
+	},
+]);
+
 // Full sendMessage() — escape hatch for any payload
 await client.sendMessage({
 	recipient: { id: "USER_IG_SCOPED_ID" },
@@ -999,20 +1061,40 @@ await client.replyToComment("COMMENT_ID", "Thanks for the kind words! 🙌");
 const { data } = await client.getComments("MEDIA_ID", ["id", "text", "timestamp", "username"]);
 ```
 
-### 3.5 — Messaging Profile (Ice Breakers / greeting)
+### 3.5 — Messaging Profile (Ice Breakers / persistent menu)
+
+The profile lives on the account's `messenger_profile` edge; every call sends `platform=instagram`.
 
 ```ts
-// Set Ice Breakers (quick-tap prompts when a user opens a new DM thread)
-await client.setProfile({
-	ice_breakers: [
-		{ call_to_action_title: "Track my order", call_to_action_payload: "TRACK_ORDER" },
-		{ call_to_action_title: "Help & support", call_to_action_payload: "SUPPORT" },
-		{ call_to_action_title: "See latest offers", call_to_action_payload: "OFFERS" },
-	],
-});
+// Ice Breakers: quick-tap questions when a user opens a new DM thread.
+// A "default" locale is required, up to 4 questions per locale.
+await client.setIceBreakers([
+	{
+		locale: "default",
+		call_to_actions: [
+			{ question: "Track my order", payload: "TRACK_ORDER" },
+			{ question: "Help & support", payload: "SUPPORT" },
+		],
+	},
+]);
 
-// Retrieve the current profile
-const { data } = await client.getProfile(["ice_breakers"]);
+// Persistent menu: postback and web_url items only
+await client.setPersistentMenu([
+	{
+		locale: "default",
+		call_to_actions: [
+			{ type: "postback", title: "Talk to an agent", payload: "AGENT" },
+			{ type: "web_url", title: "Shop now", url: "https://example.com" },
+		],
+	},
+]);
+
+const iceBreakers = await client.getIceBreakers(); // [] when unset
+const menu = await client.getPersistentMenu(); // [] when unset
+await client.deleteIceBreakers();
+await client.deletePersistentMenu();
+
+// Raw access: getProfile(fields), setProfile(payload), deleteProfile(fields)
 ```
 
 ### 3.6 — Webhook listener

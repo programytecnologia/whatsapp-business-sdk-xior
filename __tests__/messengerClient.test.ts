@@ -163,6 +163,277 @@ describe("MessengerClient", () => {
     });
   });
 
+  describe("ice breakers", () => {
+    const iceBreakers = [
+      {
+        locale: "default",
+        call_to_actions: [
+          { question: "Where are you?", payload: "WHERE" },
+          { question: "Opening hours?", payload: "HOURS" },
+        ],
+      },
+    ];
+
+    it("setIceBreakers posts the localized list to {pageId}/messenger_profile", async () => {
+      await client.setIceBreakers(iceBreakers);
+
+      expect(client.restClient.post).toHaveBeenCalledWith("page-123/messenger_profile", {
+        ice_breakers: iceBreakers,
+      });
+    });
+
+    it("setIceBreakers refuses a list without the default locale", () => {
+      expect(() =>
+        client.setIceBreakers([
+          { locale: "pt_BR", call_to_actions: iceBreakers[0].call_to_actions },
+        ]),
+      ).toThrow('setIceBreakers needs an entry with locale "default"');
+      expect(client.restClient.post).not.toHaveBeenCalled();
+    });
+
+    it("setIceBreakers refuses 5 questions in a locale", () => {
+      const call_to_actions = Array.from({ length: 5 }, (_, i) => ({
+        question: `Q${i}?`,
+        payload: `Q${i}`,
+      }));
+      expect(() => client.setIceBreakers([{ locale: "default", call_to_actions }])).toThrow(
+        'setIceBreakers: locale "default" needs 1 to 4 questions, got 5',
+      );
+    });
+
+    it("setIceBreakers refuses a locale without questions", () => {
+      expect(() => client.setIceBreakers([{ locale: "default", call_to_actions: [] }])).toThrow(
+        "got 0",
+      );
+    });
+
+    it("getIceBreakers reads the ice_breakers field", async () => {
+      (client.restClient.get as jest.Mock).mockResolvedValueOnce({
+        data: [{ ice_breakers: iceBreakers }],
+      });
+
+      await expect(client.getIceBreakers()).resolves.toEqual(iceBreakers);
+      expect(callEndpoint(client.restClient.get as jest.Mock)).toBe("page-123/messenger_profile");
+      expect(callConfig(client.restClient.get as jest.Mock).params).toEqual({
+        fields: "ice_breakers",
+      });
+    });
+
+    it.each([
+      { data: [] },
+      { data: [{}] },
+      undefined,
+    ])("getIceBreakers returns [] when Graph returns %p", async (response) => {
+      (client.restClient.get as jest.Mock).mockResolvedValueOnce(response);
+
+      await expect(client.getIceBreakers()).resolves.toEqual([]);
+    });
+
+    it("deleteIceBreakers deletes the ice_breakers field", async () => {
+      await client.deleteIceBreakers();
+
+      expect(client.restClient.delete).toHaveBeenCalledWith(
+        "page-123/messenger_profile",
+        undefined,
+        { data: { fields: ["ice_breakers"] } },
+      );
+    });
+  });
+
+  describe("get started", () => {
+    it("setGetStarted posts the payload", async () => {
+      await client.setGetStarted("GET_STARTED");
+
+      expect(client.restClient.post).toHaveBeenCalledWith("page-123/messenger_profile", {
+        get_started: { payload: "GET_STARTED" },
+      });
+    });
+
+    it("getGetStarted reads the get_started field", async () => {
+      (client.restClient.get as jest.Mock).mockResolvedValueOnce({
+        data: [{ get_started: { payload: "GET_STARTED" } }],
+      });
+
+      await expect(client.getGetStarted()).resolves.toEqual({ payload: "GET_STARTED" });
+      expect(callConfig(client.restClient.get as jest.Mock).params).toEqual({
+        fields: "get_started",
+      });
+    });
+
+    it.each([
+      { data: [] },
+      { data: [{}] },
+    ])("getGetStarted returns null when Graph returns %p", async (response) => {
+      (client.restClient.get as jest.Mock).mockResolvedValueOnce(response);
+
+      await expect(client.getGetStarted()).resolves.toBeNull();
+    });
+  });
+
+  describe("persistent menu", () => {
+    const menu = [
+      {
+        locale: "default",
+        composer_input_disabled: false,
+        call_to_actions: [
+          { type: "postback" as const, title: "Talk to us", payload: "AGENT" },
+          { type: "web_url" as const, title: "Site", url: "https://example.com" },
+        ],
+      },
+    ];
+
+    it("setPersistentMenu posts the menu", async () => {
+      await client.setPersistentMenu(menu);
+
+      expect(client.restClient.post).toHaveBeenCalledWith("page-123/messenger_profile", {
+        persistent_menu: menu,
+      });
+    });
+
+    it("setPersistentMenu refuses a menu without the default locale", () => {
+      expect(() =>
+        client.setPersistentMenu([{ locale: "pt_BR", call_to_actions: menu[0].call_to_actions }]),
+      ).toThrow('setPersistentMenu needs an entry with locale "default"');
+      expect(client.restClient.post).not.toHaveBeenCalled();
+    });
+
+    it("getPersistentMenu reads the persistent_menu field", async () => {
+      (client.restClient.get as jest.Mock).mockResolvedValueOnce({
+        data: [{ persistent_menu: menu }],
+      });
+
+      await expect(client.getPersistentMenu()).resolves.toEqual(menu);
+      expect(callConfig(client.restClient.get as jest.Mock).params).toEqual({
+        fields: "persistent_menu",
+      });
+    });
+
+    it.each([
+      { data: [] },
+      { data: [{}] },
+    ])("getPersistentMenu returns [] when Graph returns %p", async (response) => {
+      (client.restClient.get as jest.Mock).mockResolvedValueOnce(response);
+
+      await expect(client.getPersistentMenu()).resolves.toEqual([]);
+    });
+
+    it("deletePersistentMenu deletes the persistent_menu field", async () => {
+      await client.deletePersistentMenu();
+
+      expect(client.restClient.delete).toHaveBeenCalledWith(
+        "page-123/messenger_profile",
+        undefined,
+        { data: { fields: ["persistent_menu"] } },
+      );
+    });
+  });
+
+  // ── Templates ───────────────────────────────────────────────────────────────
+
+  describe("sendGenericTemplate()", () => {
+    const element = {
+      title: "Plano Essencial",
+      subtitle: "A partir de R$ 199",
+      image_url: "https://example.com/a.jpg",
+      buttons: [
+        { type: "postback" as const, title: "Quero", payload: "PLAN_A" },
+        { type: "web_url" as const, title: "Detalhes", url: "https://example.com/a" },
+      ],
+    };
+
+    it("calls POST {pageId}/messages with a generic template attachment", async () => {
+      await client.sendGenericTemplate("psid-1", [element]);
+
+      expect(client.restClient.post).toHaveBeenCalledWith("page-123/messages", {
+        recipient: { id: "psid-1" },
+        message: {
+          attachment: {
+            type: "template",
+            payload: { template_type: "generic", elements: [element] },
+          },
+        },
+        messaging_type: "RESPONSE",
+      });
+    });
+
+    it("adds image_aspect_ratio and the send options", async () => {
+      await client.sendGenericTemplate("psid-1", [element], {
+        imageAspectRatio: "square",
+        tag: "HUMAN_AGENT",
+        replyTo: "m_1",
+      });
+
+      const body = callBody<{
+        message: { attachment: { payload: Record<string, unknown> } };
+        messaging_type: string;
+        tag: string;
+        reply_to: unknown;
+      }>(client.restClient.post as jest.Mock);
+      expect(body.message.attachment.payload.image_aspect_ratio).toBe("square");
+      expect(body.messaging_type).toBe("MESSAGE_TAG");
+      expect(body.tag).toBe("HUMAN_AGENT");
+      expect(body.reply_to).toEqual({ mid: "m_1" });
+      expect(body).not.toHaveProperty("imageAspectRatio");
+    });
+
+    it("refuses 11 elements", () => {
+      expect(() =>
+        client.sendGenericTemplate(
+          "psid-1",
+          Array.from({ length: 11 }, () => element),
+        ),
+      ).toThrow("sendGenericTemplate needs 1 to 10 elements, got 11");
+      expect(client.restClient.post).not.toHaveBeenCalled();
+    });
+
+    it("refuses 4 buttons on an element", () => {
+      const buttons = Array.from({ length: 4 }, (_, i) => ({
+        type: "postback" as const,
+        title: `B${i}`,
+        payload: `B${i}`,
+      }));
+      expect(() =>
+        client.sendGenericTemplate("psid-1", [element, { title: "T", buttons }]),
+      ).toThrow("sendGenericTemplate: element 1 has 4 buttons, the limit is 3");
+    });
+  });
+
+  describe("sendButtonTemplate()", () => {
+    const buttons = [
+      { type: "postback" as const, title: "Track order", payload: "TRACK" },
+      { type: "web_url" as const, title: "Site", url: "https://example.com" },
+    ];
+
+    it("calls POST {pageId}/messages with a button template attachment", async () => {
+      await client.sendButtonTemplate("psid-1", "What now?", buttons, { messagingType: "UPDATE" });
+
+      expect(client.restClient.post).toHaveBeenCalledWith("page-123/messages", {
+        recipient: { id: "psid-1" },
+        message: {
+          attachment: {
+            type: "template",
+            payload: { template_type: "button", text: "What now?", buttons },
+          },
+        },
+        messaging_type: "UPDATE",
+      });
+    });
+
+    it("refuses 4 buttons or none", () => {
+      expect(() =>
+        client.sendButtonTemplate("psid-1", "Hi", [...buttons, ...buttons.slice(0, 2)]),
+      ).toThrow("sendButtonTemplate needs 1 to 3 buttons, got 4");
+      expect(() => client.sendButtonTemplate("psid-1", "Hi", [])).toThrow("got 0");
+      expect(client.restClient.post).not.toHaveBeenCalled();
+    });
+
+    it("refuses text over 640 characters", () => {
+      expect(() => client.sendButtonTemplate("psid-1", "x".repeat(641), buttons)).toThrow(
+        "sendButtonTemplate: text is over 640 characters",
+      );
+    });
+  });
+
   // ── Handover Protocol ───────────────────────────────────────────────────────
 
   describe("passThreadControl()", () => {

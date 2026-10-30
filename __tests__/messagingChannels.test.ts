@@ -1,3 +1,17 @@
+import type {
+  GetStarted,
+  IceBreaker,
+  IceBreakerQuestion,
+  IceBreakersLocale,
+  IGGenericElement,
+  IGGenericTemplatePayload,
+  IGPersistentMenuItem,
+  IGPostbackButton,
+  IGTemplateButton,
+  IGUrlButton,
+  IGUserProfile,
+  IGUserProfileField,
+} from "../src";
 import { InstagramClient } from "../src/instagram_client";
 import { MessengerClient } from "../src/messenger_client";
 import {
@@ -206,6 +220,62 @@ describe("InstagramClient", () => {
     expect(lastCall().url.searchParams.get("subscribed_fields")).toBe(
       "messages,messaging_postbacks",
     );
+  });
+
+  it("sets ice breakers on the account's messaging profile, not /me", async () => {
+    const iceBreakers = [
+      { locale: "default", call_to_actions: [{ question: "Preços?", payload: "PRICES" }] },
+    ];
+    await client().setIceBreakers(iceBreakers);
+    const call = lastCall();
+    expect(call.method).toBe("POST");
+    expect(call.url.pathname).toBe(`/${DEFAULT_GRAPH_API_VERSION}/1784/messenger_profile`);
+    expect(call.url.searchParams.get("platform")).toBe("instagram");
+    expect(call.body).toEqual({ ice_breakers: iceBreakers, platform: "instagram" });
+  });
+
+  it("reads ice breakers with fields and platform in the query", async () => {
+    mockFetch.mockImplementationOnce(
+      async () => new Response(JSON.stringify({ data: [] }), { status: 200 }),
+    );
+    await expect(client().getIceBreakers()).resolves.toEqual([]);
+    const call = lastCall();
+    expect(call.method).toBe("GET");
+    expect(call.url.pathname).toBe(`/${DEFAULT_GRAPH_API_VERSION}/1784/messenger_profile`);
+    expect(call.url.searchParams.get("fields")).toBe("ice_breakers");
+    expect(call.url.searchParams.get("platform")).toBe("instagram");
+  });
+
+  it("deletes the persistent menu with the fields in the body", async () => {
+    await client().deletePersistentMenu();
+    const call = lastCall();
+    expect(call.method).toBe("DELETE");
+    expect(call.url.pathname).toBe(`/${DEFAULT_GRAPH_API_VERSION}/1784/messenger_profile`);
+    expect(call.url.searchParams.get("platform")).toBe("instagram");
+    expect(call.url.searchParams.has("fields")).toBe(false);
+    expect(call.body).toEqual({ fields: ["persistent_menu"] });
+  });
+});
+
+describe("Package root exports", () => {
+  it("exposes the rich content and messaging profile types", () => {
+    // Compile-time check: ts-jest fails the suite if any of these isn't exported.
+    const element: IGGenericElement = { title: "T", buttons: [] as IGTemplateButton[] };
+    const button: IGUrlButton | IGPostbackButton = { type: "postback", title: "A", payload: "A" };
+    const payload: IGGenericTemplatePayload = { template_type: "generic", elements: [element] };
+    const question: IceBreakerQuestion = { question: "Q?", payload: "Q" };
+    const locale: IceBreakersLocale = { locale: "default", call_to_actions: [question] };
+    const menu: IGPersistentMenuItem = { locale: "default", call_to_actions: [button] };
+    const profile: IGUserProfile = { id: "1", follower_count: 3, is_verified_user: false };
+    const fields: IGUserProfileField[] = [
+      "is_user_follow_business",
+      "is_business_follow_user",
+      "follower_count",
+      "is_verified_user",
+    ];
+    const legacy: IceBreaker = { call_to_action_title: "A", call_to_action_payload: "A" };
+    const started: GetStarted = { payload: "GO" };
+    expect([payload, locale, menu, profile, fields, legacy, started]).toHaveLength(7);
   });
 });
 

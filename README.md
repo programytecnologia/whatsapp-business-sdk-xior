@@ -121,16 +121,19 @@ await client.sendText("USER_IGSID", "Hello from Instagram!");
 **Facebook Messenger**
 
 - Send text, images, audio, video, files, templates, quick replies
+- `sendGenericTemplate` (carousels) and `sendButtonTemplate`, with Meta's limits checked up front
 - Sender actions (typing indicator, read receipts)
 - Attachment Upload API (reusable media)
 - Persona API
-- Messenger Profile (Get Started, greeting, persistent menu)
+- Messenger Profile (Get Started, greeting, persistent menu, ice breakers) with typed get/set/delete helpers
 - One-Time Notifications (OTN)
 - Handover Protocol
 
 **Instagram Direct**
 
-- Send text, images, audio, video, files, templates, quick replies
+- Send text, images, audio, video, files, quick replies
+- `sendGenericTemplate` (carousels)
+- Ice breakers and persistent menu (`platform=instagram` messaging profile)
 - Sender actions
 - Handover Protocol
 

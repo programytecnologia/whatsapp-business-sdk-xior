@@ -9,6 +9,36 @@ export type IGAttachment = {
   payload: { url: string } | { attachment_id: string };
 };
 
+// ----- Generic template -----
+
+export type IGUrlButton = { type: "web_url"; title: string; url: string };
+
+export type IGPostbackButton = { type: "postback"; title: string; payload: string };
+
+export type IGTemplateButton = IGUrlButton | IGPostbackButton;
+
+/** Title and subtitle up to 80 characters each; up to 3 buttons. */
+export type IGGenericElement = {
+  title: string;
+  subtitle?: string;
+  image_url?: string;
+  /** Opened when the user taps the element itself. */
+  default_action?: { type: "web_url"; url: string };
+  buttons?: IGTemplateButton[];
+};
+
+/**
+ * A carousel of up to 10 elements.
+ *
+ * Documentation: https://developers.facebook.com/documentation/business-messaging/instagram-messaging/generic-template
+ */
+export type IGGenericTemplatePayload = {
+  template_type: "generic";
+  elements: IGGenericElement[];
+};
+
+export type IGTemplateAttachment = { type: "template"; payload: IGGenericTemplatePayload };
+
 // ----- Message -----
 
 /** Instagram quick replies: text only, up to 13, titles up to 20 characters. */
@@ -20,7 +50,7 @@ export type IGQuickReply = {
 
 export type IGMessage = {
   text?: string;
-  attachment?: IGAttachment;
+  attachment?: IGAttachment | IGTemplateAttachment;
   quick_replies?: IGQuickReply[];
 };
 

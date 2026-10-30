@@ -4,9 +4,12 @@ import type {
   CreatePersonaPayload,
   CreatePersonaResponse,
   FileAttachment,
+  GenericElement,
   GetMessengerProfileResponse,
   GetSecondaryReceiversResponse,
+  GetStarted,
   GetThreadOwnerResponse,
+  IceBreakersLocale,
   IndicatorSenderAction,
   MessengerAttachment,
   MessengerProfile,
@@ -15,14 +18,25 @@ import type {
   MessengerSendPayload,
   MessengerSendResponse,
   MessengerWebhookField,
+  PersistentMenuItem,
   Persona,
+  PostbackButton,
   QuickReply,
   SubscribedAppsResponse,
+  UrlButton,
   UserProfile,
   UserProfileField,
 } from "./types/messenger";
 import type { DefaultMessengerErrorAPI } from "./types/messenger/error";
 import { assertGraphNodeId, graphApiBaseUrl } from "./utils/graphApi";
+import {
+  assertButtonTemplate,
+  assertGenericElements,
+  assertIceBreakers,
+  assertPersistentMenu,
+  readIceBreakers,
+  readProfileList,
+} from "./utils/messagingProfile";
 import { MessengerErrorHandler } from "./utils/messengerErrorHandler";
 import { createRestClient } from "./utils/restClient";
 
@@ -109,6 +123,58 @@ export class MessengerClient {
     });
   }
 
+  /**
+   * Send a generic template: one card, or a carousel of up to 10. Each element
+   * takes up to 3 buttons. Throws before the request when a limit is broken.
+   *
+   * Documentation: https://developers.facebook.com/docs/messenger-platform/send-messages/template/generic
+   */
+  sendGenericTemplate(
+    recipientId: string,
+    elements: GenericElement[],
+    options?: MessengerSendOptions & { imageAspectRatio?: "horizontal" | "square" },
+  ) {
+    assertGenericElements("sendGenericTemplate", elements);
+    return this.send({
+      recipient: { id: recipientId },
+      message: {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "generic",
+            elements,
+            ...(options?.imageAspectRatio && { image_aspect_ratio: options.imageAspectRatio }),
+          },
+        },
+      },
+      messaging_type: "RESPONSE",
+      ...sendOptionFields(options),
+    });
+  }
+
+  /**
+   * Send text (up to 640 characters) with 1 to 3 URL or postback buttons.
+   * Throws before the request when a limit is broken.
+   *
+   * Documentation: https://developers.facebook.com/docs/messenger-platform/send-messages/template/button
+   */
+  sendButtonTemplate(
+    recipientId: string,
+    text: string,
+    buttons: (UrlButton | PostbackButton)[],
+    options?: MessengerSendOptions,
+  ) {
+    assertButtonTemplate("sendButtonTemplate", text, buttons);
+    return this.send({
+      recipient: { id: recipientId },
+      message: {
+        attachment: { type: "template", payload: { template_type: "button", text, buttons } },
+      },
+      messaging_type: "RESPONSE",
+      ...sendOptionFields(options),
+    });
+  }
+
   /** Typing on/off or mark seen. Sender actions only carry the recipient. */
   sendSenderAction(recipientId: string, sender_action: IndicatorSenderAction) {
     return this.send({ recipient: { id: recipientId }, sender_action });
@@ -162,6 +228,67 @@ export class MessengerClient {
         data: { fields },
       },
     );
+  }
+
+  /** Ice breakers per locale, or `[]` when none are set. */
+  async getIceBreakers(): Promise<IceBreakersLocale[]> {
+    return readIceBreakers(await this.getProfile(["ice_breakers"]));
+  }
+
+  /**
+   * Replace the ice breakers: the questions shown when a user opens a new
+   * thread. A `default` locale is required, with 1 to 4 questions per locale.
+   * Tapping one sends a `messaging_postbacks` webhook with its payload.
+   *
+   * Documentation: https://developers.facebook.com/docs/messenger-platform/discovery/ice-breakers
+   */
+  setIceBreakers(iceBreakers: IceBreakersLocale[]) {
+    assertIceBreakers("setIceBreakers", iceBreakers);
+    return this.setProfile({ ice_breakers: iceBreakers });
+  }
+
+  deleteIceBreakers() {
+    return this.deleteProfile(["ice_breakers"]);
+  }
+
+  /** The Get Started button, or `null` when it isn't set. */
+  async getGetStarted(): Promise<GetStarted | null> {
+    const response = await this.getProfile(["get_started"]);
+    return response?.data?.find((entry) => entry?.get_started)?.get_started ?? null;
+  }
+
+  /**
+   * Set the Get Started button; tapping it sends a postback with `payload`.
+   * Messenger only shows a persistent menu once this is set.
+   *
+   * Documentation: https://developers.facebook.com/docs/messenger-platform/reference/messenger-profile-api/get-started-button
+   */
+  setGetStarted(payload: string) {
+    return this.setProfile({ get_started: { payload } });
+  }
+
+  /** Persistent menu per locale, or `[]` when none is set. */
+  async getPersistentMenu(): Promise<PersistentMenuItem[]> {
+    return readProfileList<PersistentMenuItem>(
+      await this.getProfile(["persistent_menu"]),
+      "persistent_menu",
+    );
+  }
+
+  /**
+   * Replace the persistent menu. A `default` locale is required, with up to 20
+   * items per locale. Messenger needs the Get Started button first
+   * (`setGetStarted`), or the menu is not shown.
+   *
+   * Documentation: https://developers.facebook.com/docs/messenger-platform/send-messages/persistent-menu
+   */
+  setPersistentMenu(menu: PersistentMenuItem[]) {
+    assertPersistentMenu("setPersistentMenu", menu);
+    return this.setProfile({ persistent_menu: menu });
+  }
+
+  deletePersistentMenu() {
+    return this.deleteProfile(["persistent_menu"]);
   }
 
   // ---------------------------------------------------------------------------
